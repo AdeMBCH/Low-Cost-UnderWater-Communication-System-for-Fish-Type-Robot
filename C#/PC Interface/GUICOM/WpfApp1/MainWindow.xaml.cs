@@ -136,7 +136,6 @@ namespace WpfApp1
             {
                 case (int)CommandId.Text:
                     string receivedText = Encoding.ASCII.GetString(msgPayload);
-                    textBoxReception.Text = receivedText;
                     break;
                 default:
                     break;

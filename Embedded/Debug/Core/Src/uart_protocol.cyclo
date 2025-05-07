@@ -1,0 +1,4 @@
+../Core/Src/uart_protocol.c:12:16:CalcChecksum	2
+../Core/Src/uart_protocol.c:25:6:UartProtocol_Init	1
+../Core/Src/uart_protocol.c:35:6:UartProtocol_ParseByte	14
+../Core/Src/uart_protocol.c:90:6:UartProtocol_SendFrame	2

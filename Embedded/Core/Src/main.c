@@ -23,8 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include <string.h>
 #include <stdint.h>
-#include "stm32f4xx_hal_conf.h"
-#include "stm32f4xx_it.h"
+#include "uart_protocol.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,8 +45,6 @@
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-#define FRAME_MAX_PAYLOAD 256
-uint8_t frame_payload[FRAME_MAX_PAYLOAD];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -55,130 +52,19 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
-void ProcessFrame(uint16_t cmd, uint16_t len, uint8_t* payload);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-typedef enum {
-    WAIT_SOF,
-    READ_CMD_MSB,
-    READ_CMD_LSB,
-    READ_LEN_MSB,
-    READ_LEN_LSB,
-    READ_PAYLOAD,
-    READ_CHECKSUM
-} RX_State;
 
-RX_State rx_state = WAIT_SOF;
-uint16_t rx_cmd = 0;
-uint16_t rx_len = 0;
-uint16_t rx_payload_idx = 0;
-uint8_t rx_checksum = 0;
-uint8_t rx_calc_checksum = 0;
-
-void ResetRxState() {
-    rx_state = WAIT_SOF;
-    rx_cmd = 0;
-    rx_len = 0;
-    rx_payload_idx = 0;
-    rx_checksum = 0;
-    rx_calc_checksum = 0;
+// Callback called when a valid frame is received
+void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
+{
+    // Echo the received frame back to the PC (loopback)
+    UartProtocol_SendFrame(&huart2, cmd, len, payload);
+    // You can add more processing here if needed
 }
 
-uint8_t CalcChecksum(uint16_t cmd, uint16_t len, uint8_t* payload) {
-    uint8_t cs = 0;
-    cs ^= 0xFE;
-    cs ^= (cmd >> 8) & 0xFF;
-    cs ^= (cmd >> 0) & 0xFF;
-    cs ^= (len >> 8) & 0xFF;
-    cs ^= (len >> 0) & 0xFF;
-    for (uint16_t i = 0; i < len; i++) {
-        cs ^= payload[i];
-    }
-    return cs;
-}
-
-void UART_RxHandler(uint8_t c) {
-    switch(rx_state) {
-        case WAIT_SOF:
-            if (c == 0xFE) {
-                rx_state = READ_CMD_MSB;
-                rx_calc_checksum = 0xFE;
-            }
-            break;
-        case READ_CMD_MSB:
-            rx_cmd = ((uint16_t)c) << 8;
-            rx_calc_checksum ^= c;
-            rx_state = READ_CMD_LSB;
-            break;
-        case READ_CMD_LSB:
-            rx_cmd |= c;
-            rx_calc_checksum ^= c;
-            rx_state = READ_LEN_MSB;
-            break;
-        case READ_LEN_MSB:
-            rx_len = ((uint16_t)c) << 8;
-            rx_calc_checksum ^= c;
-            rx_state = READ_LEN_LSB;
-            break;
-        case READ_LEN_LSB:
-            rx_len |= c;
-            rx_calc_checksum ^= c;
-            if (rx_len > FRAME_MAX_PAYLOAD) {
-                // Too big, reset state
-                ResetRxState();
-            } else if (rx_len == 0) {
-                rx_state = READ_CHECKSUM;
-            } else {
-                rx_payload_idx = 0;
-                rx_state = READ_PAYLOAD;
-            }
-            break;
-        case READ_PAYLOAD:
-            frame_payload[rx_payload_idx++] = c;
-            rx_calc_checksum ^= c;
-            if (rx_payload_idx >= rx_len) {
-                rx_state = READ_CHECKSUM;
-            }
-            break;
-        case READ_CHECKSUM:
-            rx_checksum = c;
-            if (rx_checksum == rx_calc_checksum) {
-                // Valid frame
-                ProcessFrame(rx_cmd, rx_len, frame_payload);
-            }
-            // Regardless, reset state
-            ResetRxState();
-            break;
-        default:
-            ResetRxState();
-            break;
-    }
-}
-
-// Send a protocol frame (echo)
-void SendFrame(uint16_t cmd, uint16_t len, uint8_t* payload) {
-    uint8_t tx_buf[6 + FRAME_MAX_PAYLOAD];
-    int pos = 0;
-    tx_buf[pos++] = 0xFE;
-    tx_buf[pos++] = (cmd >> 8) & 0xFF;
-    tx_buf[pos++] = (cmd >> 0) & 0xFF;
-    tx_buf[pos++] = (len >> 8) & 0xFF;
-    tx_buf[pos++] = (len >> 0) & 0xFF;
-    for (int i = 0; i < len; i++) {
-        tx_buf[pos++] = payload[i];
-    }
-    uint8_t cs = CalcChecksum(cmd, len, payload);
-    tx_buf[pos++] = cs;
-    HAL_UART_Transmit(&huart2, tx_buf, pos, 100);
-}
-
-// Called when a valid frame is received
-void ProcessFrame(uint16_t cmd, uint16_t len, uint8_t* payload) {
-    // Echo back the same frame (loopback)
-    SendFrame(cmd, len, payload);
-}
 /* USER CODE END 0 */
 
 /**
@@ -189,30 +75,30 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+	UartProtocol proto;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+	HAL_Init();
 
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
 
   /* Configure the system clock */
-  SystemClock_Config();
+	SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_USART2_UART_Init();
+	MX_GPIO_Init();
+	MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  ResetRxState();
+	UartProtocol_Init(&proto, OnFrameReceived);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -224,7 +110,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	  if (HAL_UART_Receive(&huart2, &c, 1, 10) == HAL_OK) {
-		  UART_RxHandler(c); // This will parse the protocol and echo the whole frame
+		  UartProtocol_ParseByte(&proto, c); // This will parse the protocol and echo the whole frame
 	    }
     }
     // Optionally add a small delay or other tasks
