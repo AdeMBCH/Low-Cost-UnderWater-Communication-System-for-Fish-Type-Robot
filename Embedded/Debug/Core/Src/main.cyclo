@@ -1,6 +1,7 @@
-../Core/Src/main.c:61:6:OnFrameReceived	1
-../Core/Src/main.c:74:5:main	2
-../Core/Src/main.c:124:6:SystemClock_Config	3
-../Core/Src/main.c:166:13:MX_USART2_UART_Init	2
-../Core/Src/main.c:199:13:MX_GPIO_Init	1
-../Core/Src/main.c:221:6:Error_Handler	1
+../Core/Src/main.c:79:6:OnFrameReceived	2
+../Core/Src/main.c:107:5:main	2
+../Core/Src/main.c:160:6:SystemClock_Config	3
+../Core/Src/main.c:202:13:MX_ADC1_Init	3
+../Core/Src/main.c:254:13:MX_USART2_UART_Init	2
+../Core/Src/main.c:287:13:MX_GPIO_Init	1
+../Core/Src/main.c:309:6:Error_Handler	1

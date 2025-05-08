@@ -18,7 +18,6 @@ typedef struct UartProtocol UartProtocol;
 typedef void (*FrameReceivedCallback)(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload);
 
 struct UartProtocol {
-    // Etat du parser
     enum {
         WAIT_SOF,
         READ_CMD_MSB,
@@ -36,17 +35,14 @@ struct UartProtocol {
     uint8_t rx_calc_checksum;
     uint8_t frame_payload[FRAME_MAX_PAYLOAD];
 
-    // Pointeur vers la fonction callback
     FrameReceivedCallback onFrameReceived;
 };
 
 
 void UartProtocol_Init(UartProtocol* proto, FrameReceivedCallback cb);
 
-// Appeler cette fonction à chaque octet reçu
 void UartProtocol_ParseByte(UartProtocol* proto, uint8_t c);
 
-// Pour envoyer une trame
 void UartProtocol_SendFrame(UART_HandleTypeDef* huart, uint16_t cmd, uint16_t len, uint8_t* payload);
 
 #endif /* INC_UART_PROTOCOL_H_ */

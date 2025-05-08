@@ -24,10 +24,14 @@
 #include <string.h>
 #include <stdint.h>
 #include "uart_protocol.h"
+#include "qpsk_modem.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+
+#define CMD_QPSK_MOD_DEMOD 0x1010
+#define CMD_QPSK_RESULT    0x9010
 
 /* USER CODE END PTD */
 
@@ -42,7 +46,12 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+
 UART_HandleTypeDef huart2;
+
+QpskModem modem;
+QpskRingBuffer tx_ringbuf, rx_ringbuf;
 
 /* USER CODE BEGIN PV */
 /* USER CODE END PV */
@@ -51,6 +60,8 @@ UART_HandleTypeDef huart2;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_ADC1_Init(void);
+
 /* USER CODE BEGIN PFP */
 /* USER CODE END PFP */
 
@@ -58,11 +69,33 @@ static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN 0 */
 
 // Callback called when a valid frame is received
-void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
+/*void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
 {
     // Echo the received frame back to the PC (loopback)
     UartProtocol_SendFrame(&huart2, cmd, len, payload);
-    // You can add more processing here if needed
+
+}
+*/
+void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
+{
+    if (cmd == CMD_QPSK_MOD_DEMOD) {
+
+        QpskRingBuffer_Init(&tx_ringbuf);
+        QpskRingBuffer_Init(&rx_ringbuf);
+        QpskModem_Modulate(&modem, payload, len);
+        QpskModem_SymbolsToIQ(&modem);
+        QpskModem_GenerateSignal(&modem, &tx_ringbuf, 1.0f);
+
+        Qpsk_SimulateReception(&tx_ringbuf, &rx_ringbuf);
+
+        uint8_t data_out[QPSK_MAX_SYMBOLS/4];
+        uint16_t len_out = 0;
+        QpskModem_Demodulate(&modem, &rx_ringbuf, data_out, &len_out);
+
+        //UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len, payload);
+
+       UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, data_out);
+    }
 }
 
 /* USER CODE END 0 */
@@ -81,24 +114,27 @@ int main(void)
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-	HAL_Init();
+  HAL_Init();
 
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
 
   /* Configure the system clock */
-	SystemClock_Config();
+  SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-	MX_GPIO_Init();
-	MX_USART2_UART_Init();
+  MX_GPIO_Init();
+  MX_USART2_UART_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 	UartProtocol_Init(&proto, OnFrameReceived);
+
+	QpskModem_Init(&modem, 16, 40000.0f, 640000.0f);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -114,8 +150,8 @@ int main(void)
 	    }
     }
     // Optionally add a small delay or other tasks
-  }
   /* USER CODE END 3 */
+}
 
 /**
   * @brief System Clock Configuration
@@ -156,6 +192,58 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_0;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
 }
 
 /**

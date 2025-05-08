@@ -56,7 +56,8 @@ namespace WpfApp1
         {
             byte[] msgPayload = Encoding.ASCII.GetBytes(textBoxEmission.Text);
             int msgPayloadLength = msgPayload.Length;
-            int msgFunction = (int)CommandId.Text;
+            //int msgFunction = (int)CommandId.Text;
+            int msgFunction = (int)CommandId.QpskModDemod;
             UartEncodeAndSendMessage(msgFunction, msgPayloadLength, msgPayload);
 
             textBoxEmission.Clear();
@@ -85,7 +86,8 @@ namespace WpfApp1
             string s = "Bonjour";
             byte[] msgPayload = Encoding.ASCII.GetBytes(s);
             int msgPayloadLength = msgPayload.Length;
-            int msgFunction = (int)CommandId.Text;
+            //int msgFunction = (int)CommandId.Text;
+            int msgFunction = (int)CommandId.QpskModDemod;
             UartEncodeAndSendMessage(msgFunction, msgPayloadLength, msgPayload);
             //SendTextMessage("Bonjour");
         }
@@ -95,7 +97,7 @@ namespace WpfApp1
             byte checksum = 0;
             checksum ^= 0xFE;
             checksum ^= (byte)(msgFunction >> 8);
-            checksum ^= (byte)(msgFunction >> 0); // On le fait par symétrie de construction
+            checksum ^= (byte)(msgFunction >> 0);
             checksum ^= (byte)(msgPayloadLength >> 8);
             checksum ^= (byte)(msgPayloadLength >> 0);
 
@@ -128,6 +130,9 @@ namespace WpfApp1
         public enum CommandId
         {
             Text = 0x0080,
+            QpskModDemod = 0x1010,
+            QpskResult = 0x9010
+
         }
 
         void ProcessDecodedMessage(int msgFunction, int msgPayloadLength, byte[] msgPayload)
@@ -136,9 +141,15 @@ namespace WpfApp1
             {
                 case (int)CommandId.Text:
                     string receivedText = Encoding.ASCII.GetString(msgPayload);
+                    textBoxReception.Text = receivedText;
+                    break;
+                case (int)CommandId.QpskResult:
+                    string qpskText = Encoding.ASCII.GetString(msgPayload);
+                    textBoxReception.Text += "\n[QPSK Demodulé] : " + qpskText + "\n";
                     break;
                 default:
                     break;
+
             }
         }
 
@@ -217,6 +228,12 @@ namespace WpfApp1
                         textBoxReception.Text += "Fonction : " + msgDecodedFunction + "\n";
                         textBoxReception.Text += "Taille Payload: " + msgDecodedPayloadLength + "\n";
                         textBoxReception.Text += "Payload : " + Encoding.ASCII.GetString(msgDecodedPayload) + "\n";
+
+                        // Affichage hexadécimal pour debug :
+                        textBoxReception.Text += "Payload HEX : ";
+                        for (int i = 0; i < msgDecodedPayloadLength; i++)
+                            textBoxReception.Text += $"{msgDecodedPayload[i]:X2} ";
+                        textBoxReception.Text += "\n";
 
                         ProcessDecodedMessage(msgDecodedFunction, msgDecodedPayloadLength, msgDecodedPayload); 
                     }
