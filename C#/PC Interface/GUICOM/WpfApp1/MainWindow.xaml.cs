@@ -145,7 +145,7 @@ namespace WpfApp1
                     break;
                 case (int)CommandId.QpskResult:
                     string qpskText = Encoding.ASCII.GetString(msgPayload);
-                    textBoxReception.Text += "\n[QPSK Demodulé] : " + qpskText + "\n";
+                    textBoxReception.Text += "[QPSK Demodulated] : " + qpskText + "\n";
                     break;
                 default:
                     break;
@@ -224,22 +224,23 @@ namespace WpfApp1
                     if (receivedChecksum == calculatedChecksum)
                     {
                         textBoxReception.Text += "\n";
-                        textBoxReception.Text += "Message valide \n";
-                        textBoxReception.Text += "Fonction : " + msgDecodedFunction + "\n";
-                        textBoxReception.Text += "Taille Payload: " + msgDecodedPayloadLength + "\n";
+                        textBoxReception.Text += "Valid Message \n";
+                        textBoxReception.Text += "Function : " + msgDecodedFunction + "\n";
+                        textBoxReception.Text += "Payload Length: " + msgDecodedPayloadLength + "\n";
                         textBoxReception.Text += "Payload : " + Encoding.ASCII.GetString(msgDecodedPayload) + "\n";
 
                         // Affichage hexadécimal pour debug :
-                        textBoxReception.Text += "Payload HEX : ";
+                        /*textBoxReception.Text += "Payload HEX : ";
                         for (int i = 0; i < msgDecodedPayloadLength; i++)
                             textBoxReception.Text += $"{msgDecodedPayload[i]:X2} ";
                         textBoxReception.Text += "\n";
+                        */
 
                         ProcessDecodedMessage(msgDecodedFunction, msgDecodedPayloadLength, msgDecodedPayload); 
                     }
                     else
                     {
-                        textBoxReception.Text += "Erreur Checksum \n";
+                        textBoxReception.Text += "Checksum Error \n";
                     }
                     rcvState = StateReception.Waiting;
                     break;

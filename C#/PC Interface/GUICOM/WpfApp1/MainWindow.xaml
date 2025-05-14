@@ -5,28 +5,28 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WpfApp1"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="SakanaCom" Height="450" Width="800">
     <Grid Margin="0,0,0,-6">
         <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="50"/>
-            <RowDefinition Height="100"/>
+            <RowDefinition/>
+            <RowDefinition Height="42"/>
+            <RowDefinition Height="215.04"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="1*"/>
             <ColumnDefinition Width="1*"/>
         </Grid.ColumnDefinitions>
-        <GroupBox Header="Emitter" Background="#FFDDDDDD" BorderBrush="Black" Grid.Row="0" Grid.Column="0" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Margin="5">
+        <GroupBox Header="Emitter" Background="#FFDDDDDD" BorderBrush="Black" Grid.Row="0" Grid.Column="0" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Margin="5,5,5,5">
             <TextBox x:Name="textBoxEmission" TextWrapping="Wrap" Background="{x:Null}" BorderBrush="{x:Null}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" AcceptsReturn="True" KeyUp="textBoxEmission_KeyUp"/>
         </GroupBox>
-        <GroupBox Header="Receiver" Background="#FFDDDDDD" BorderBrush="Black" Grid.Column="1" Grid.Row="0" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Margin="5">
+        <GroupBox Header="Receiver" Background="#FFDDDDDD" BorderBrush="Black" Grid.Column="1" Grid.Row="0" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Margin="5,5,5,5">
             <TextBox x:Name="textBoxReception" TextWrapping="Wrap" Background="{x:Null}" BorderBrush="{x:Null}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" AcceptsReturn="True" IsReadOnly="True"/>
         </GroupBox>
-        <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Center">
+        <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="315,0,0,0" Width="170">
             <Button x:Name="buttonEnvoyer" Content="Send" HorizontalAlignment="Center" VerticalAlignment="Top" Padding="10,5,10,5" Click="buttonEnvoyer_Click" Margin="5"/>
             <Button x:Name="buttonClear" Content="Clear" HorizontalAlignment="Center" VerticalAlignment="Top" Padding="10,5,10,5" Click="buttonClear_Click" Margin="5"/>
             <Button x:Name="buttonTest" Content="Test" HorizontalAlignment="Center" Margin="5" VerticalAlignment="Top" Click="buttonTest_Click" Padding="10,5,10,5" />
         </StackPanel>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Grid.Row="2" Grid.ColumnSpan="2"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Grid.Row="2" Grid.Column="1" Width="0"/>
     </Grid>
 </Window>
