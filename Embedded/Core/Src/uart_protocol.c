@@ -8,6 +8,7 @@
 
 #include "uart_protocol.h"
 #include "stm32f4xx_hal.h"
+#include "CMD.h"
 
 static uint8_t CalcChecksum(uint16_t cmd, uint16_t len, uint8_t* payload) {
     uint8_t cs = 0;
@@ -101,4 +102,12 @@ void UartProtocol_SendFrame(UART_HandleTypeDef* huart, uint16_t cmd, uint16_t le
     uint8_t cs = CalcChecksum(cmd, len, payload);
     tx_buf[pos++] = cs;
     HAL_UART_Transmit(huart, tx_buf, pos, 100);
+}
+
+void SendIQFrame(UART_HandleTypeDef* huart, int8_t i, int8_t q) {
+    uint8_t payload[3];
+    payload[0] = 'T'; // Pour TX
+    payload[1] = (uint8_t)i;
+    payload[2] = (uint8_t)q;
+    UartProtocol_SendFrame(huart, CMD_IQ_DATA, 3, payload);
 }

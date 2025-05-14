@@ -25,13 +25,17 @@
 #include <stdint.h>
 #include "uart_protocol.h"
 #include "qpsk_modem.h"
+#include "CMD.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
+/*
 #define CMD_QPSK_MOD_DEMOD 0x1010
 #define CMD_QPSK_RESULT    0x9010
+#define CMD_IQ_DATA 0x55AA*/
 
 /* USER CODE END PTD */
 
@@ -82,7 +86,7 @@ void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* p
 
         QpskRingBuffer_Init(&tx_ringbuf);
         QpskRingBuffer_Init(&rx_ringbuf);
-        QpskModem_Modulate(&modem, payload, len);
+        QpskModem_Modulate(&huart2, &modem, payload, len);
         QpskModem_SymbolsToIQ(&modem);
         QpskModem_GenerateSignal(&modem, &tx_ringbuf, 1.0f);
 
@@ -90,7 +94,7 @@ void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* p
 
         uint8_t data_out[QPSK_MAX_SYMBOLS/4];
         uint16_t len_out = 0;
-        QpskModem_Demodulate(&modem, &rx_ringbuf, data_out, &len_out);
+        QpskModem_Demodulate(&huart2,&modem, &rx_ringbuf, data_out, &len_out);
 
         //UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len, payload);
 

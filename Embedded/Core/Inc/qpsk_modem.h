@@ -33,8 +33,8 @@ typedef struct {
 //QPSK modulation Functions
 
 void QpskModem_Init(QpskModem* modem, uint16_t sample_per_symbol, float f0, float fs);
-void QpskModem_Modulate(QpskModem* modem, const uint8_t* data, uint16_t len);
-void QpskModem_Demodulate(QpskModem* modem, QpskRingBuffer* rxbuf, uint8_t* data_out, uint16_t* len_out);
+void QpskModem_Modulate(UART_HandleTypeDef* huart2, QpskModem* modem, const uint8_t* data, uint16_t len);
+void QpskModem_Demodulate(UART_HandleTypeDef* huart2,QpskModem* modem, QpskRingBuffer* rxbuf, uint8_t* data_out, uint16_t* len_out);
 void QpskModem_SymbolsToIQ(QpskModem* modem);
 void QpskModem_GenerateSignal(QpskModem* modem, QpskRingBuffer* txbuf, float amplitude);
 void Qpsk_SimulateReception(QpskRingBuffer* txbuf, QpskRingBuffer* rxbuf);

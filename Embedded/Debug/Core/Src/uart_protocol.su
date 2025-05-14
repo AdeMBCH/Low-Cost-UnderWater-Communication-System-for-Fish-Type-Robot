@@ -1,4 +1,5 @@
-../Core/Src/uart_protocol.c:12:16:CalcChecksum	24	static
-../Core/Src/uart_protocol.c:25:6:UartProtocol_Init	16	static
-../Core/Src/uart_protocol.c:35:6:UartProtocol_ParseByte	24	static
-../Core/Src/uart_protocol.c:90:6:UartProtocol_SendFrame	304	static
+../Core/Src/uart_protocol.c:13:16:CalcChecksum	24	static
+../Core/Src/uart_protocol.c:26:6:UartProtocol_Init	16	static
+../Core/Src/uart_protocol.c:36:6:UartProtocol_ParseByte	24	static
+../Core/Src/uart_protocol.c:91:6:UartProtocol_SendFrame	304	static
+../Core/Src/uart_protocol.c:107:6:SendIQFrame	24	static

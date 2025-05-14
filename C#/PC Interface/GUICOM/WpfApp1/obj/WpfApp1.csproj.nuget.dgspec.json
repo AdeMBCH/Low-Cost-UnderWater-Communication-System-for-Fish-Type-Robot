@@ -50,6 +50,10 @@
         "net6.0": {
           "targetAlias": "net6.0",
           "dependencies": {
+            "ScottPlot.WPF": {
+              "target": "Package",
+              "version": "[5.0.55, )"
+            },
             "System.IO.Ports": {
               "target": "Package",
               "version": "[8.0.0, )"
@@ -128,6 +132,12 @@
       "frameworks": {
         "net8.0-windows7.0": {
           "targetAlias": "net8.0-windows",
+          "dependencies": {
+            "ScottPlot.WPF": {
+              "target": "Package",
+              "version": "[5.0.55, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",

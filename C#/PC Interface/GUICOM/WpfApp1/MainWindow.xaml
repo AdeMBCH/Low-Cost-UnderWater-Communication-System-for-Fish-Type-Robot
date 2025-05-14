@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:ScottPlot="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
         xmlns:local="clr-namespace:WpfApp1"
         mc:Ignorable="d"
         Title="SakanaCom" Height="450" Width="800">
@@ -28,5 +29,7 @@
             <Button x:Name="buttonTest" Content="Test" HorizontalAlignment="Center" Margin="5" VerticalAlignment="Top" Click="buttonTest_Click" Padding="10,5,10,5" />
         </StackPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Grid.Row="2" Grid.Column="1" Width="0"/>
+        <ScottPlot:WpfPlot x:Name="WpfPlotTx" Margin="10,26,10,26" Grid.Row="3"/>
+        <ScottPlot:WpfPlot x:Name="WpfPlotRx" Margin="10,26,10,26"  Grid.Column="1" Grid.Row="3"/>
     </Grid>
 </Window>

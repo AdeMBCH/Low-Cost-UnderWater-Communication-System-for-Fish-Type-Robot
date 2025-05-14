@@ -7,6 +7,8 @@
 
 #include "qpsk_modem.h"
 #include <math.h>
+#include "uart_protocol.h"
+#include "CMD.h"
 
 static const int8_t QPSK_I[4] = {+127,-127,-127,+127};
 static const int8_t QPSK_Q[4] = {+127,+127,-127,-127};
@@ -22,7 +24,7 @@ void QpskModem_Init(QpskModem* modem, uint16_t sample_per_symbol, float f0, floa
 	modem->fs = fs;
 }
 
-void QpskModem_Modulate(QpskModem* modem, const uint8_t* data, uint16_t len){
+/*void QpskModem_Modulate(QpskModem* modem, const uint8_t* data, uint16_t len){
 	modem->num_symbols = len*4;
 	uint16_t idx = 0;
 	for (uint16_t i =0 ; i < len ; i++){
@@ -31,9 +33,32 @@ void QpskModem_Modulate(QpskModem* modem, const uint8_t* data, uint16_t len){
 			modem->symbols[idx++] = (byte >> b) & 0x03;
 		}
 	}
+}*/
+
+void QpskModem_Modulate(UART_HandleTypeDef* huart2, QpskModem* modem, const uint8_t* data, uint16_t len){
+    modem->num_symbols = len*4;
+    uint16_t idx = 0;
+    for (uint16_t i =0 ; i < len ; i++){
+        uint8_t byte = data[i];
+        for(int b=6; b>= 0 ; b-=2){
+            uint8_t symbol = (byte >> b) & 0x03;
+            modem->symbols[idx++] = symbol;
+
+           //Sending the TX IQ Constellation
+            int8_t i_val, q_val;
+            switch(symbol) {
+                case 0: i_val =  127; q_val =  127; break; // 00
+                case 1: i_val = -127; q_val =  127; break; // 01
+                case 2: i_val = -127; q_val = -127; break; // 10
+                case 3: i_val =  127; q_val = -127; break; // 11
+            }
+            SendIQFrame(huart2, i_val, q_val);
+        }
+    }
 }
 
-void QpskModem_Demodulate(QpskModem* modem, QpskRingBuffer* rxbuf, uint8_t* data_out, uint16_t* len_out) {
+
+void QpskModem_Demodulate(UART_HandleTypeDef* huart2,QpskModem* modem, QpskRingBuffer* rxbuf, uint8_t* data_out, uint16_t* len_out) {
     uint16_t nb_symbols = 0;
     uint8_t symbols[QPSK_MAX_SYMBOLS];
     uint32_t global_sample = 0;
@@ -49,6 +74,14 @@ void QpskModem_Demodulate(QpskModem* modem, QpskRingBuffer* rxbuf, uint8_t* data
             I += sample * ref_cos;
             Q += sample * ref_sin;
         }
+
+        uint8_t i_val, q_val;
+        uint8_t payload[3];
+        payload[0] = 'R';
+        payload[1] = (uint8_t)i_val;
+        payload[2] = (uint8_t)q_val;
+        UartProtocol_SendFrame(huart2, 0x55AA, 3, payload);
+
         uint8_t symbol = 0;
         if (I >= 0 && Q >= 0) symbol = 0;
         else if (I < 0 && Q >= 0) symbol = 1;
@@ -122,7 +155,6 @@ uint32_t QpskRingBuffer_Available(const QpskRingBuffer* rb) {
     else
         return QPSK_RINGBUF_SIZE - (rb->tail - rb->head);
 }
-
 
 // TESTS FUNCTION
 

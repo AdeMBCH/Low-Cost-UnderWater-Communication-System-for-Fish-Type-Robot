@@ -7,6 +7,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using ExtendedSerialPort_NS;
+using ScottPlot;
+using Color = ScottPlot.Color;
 using static System.Net.Mime.MediaTypeNames;
 
 namespace WpfApp1
@@ -16,6 +18,8 @@ namespace WpfApp1
         ExtendedSerialPort serialPort1;
         DispatcherTimer timerAffichage;
         Robot robot = new Robot();
+        private List<double> txI = new();
+        private List<double> txQ = new();
 
         public MainWindow()
         {
@@ -79,6 +83,8 @@ namespace WpfApp1
         private void buttonClear_Click(object sender, RoutedEventArgs e)
         {
             textBoxReception.Clear();
+            WpfPlotTx.Plot.Clear();
+            WpfPlotRx.Plot.Clear();
         }
 
         private void buttonTest_Click(object sender, RoutedEventArgs e)
@@ -91,6 +97,39 @@ namespace WpfApp1
             UartEncodeAndSendMessage(msgFunction, msgPayloadLength, msgPayload);
             //SendTextMessage("Bonjour");
         }
+
+
+        private void UpdateConstellationPlotTX()
+        {
+            WpfPlotTx.Plot.Clear();
+
+            var scatter = WpfPlotTx.Plot.Add.Scatter(txI.ToArray(), txQ.ToArray());
+            scatter.MarkerSize = 5;
+            scatter.Color = ScottPlot.Color.FromHex("#2196F3");
+            scatter.LineWidth = 0;
+
+            WpfPlotTx.Plot.Title("Constellation TX");
+            WpfPlotTx.Plot.Axes.SetLimits(-1.5, 1.5, -1.5, 1.5);
+            WpfPlotTx.Refresh();
+        }
+
+        private void UpdateConstellationPlotRX()
+        {
+            WpfPlotRx.Plot.Clear();
+
+            var scatter = WpfPlotRx.Plot.Add.Scatter(txI.ToArray(), txQ.ToArray());
+            scatter.MarkerSize = 5;
+            scatter.Color = ScottPlot.Color.FromHex("#FF0000"); 
+            scatter.LineWidth = 0;
+
+            WpfPlotRx.Plot.Title("Constellation TX");
+            WpfPlotRx.Plot.Axes.SetLimits(-1.5, 1.5, -1.5, 1.5);
+            WpfPlotRx.Refresh();
+        }
+
+
+
+
 
         private byte CalculateChecksum(int msgFunction, int msgPayloadLength, byte[] msgPayload)
         {
@@ -131,12 +170,14 @@ namespace WpfApp1
         {
             Text = 0x0080,
             QpskModDemod = 0x1010,
-            QpskResult = 0x9010
+            QpskResult = 0x9010,
+            IQ_DATA = 0x55AA
 
         }
 
         void ProcessDecodedMessage(int msgFunction, int msgPayloadLength, byte[] msgPayload)
         {
+            //System.Diagnostics.Debug.WriteLine($"msgFunction=0x{msgFunction:X4}, payloadLen={msgPayloadLength}");
             switch (msgFunction)
             {
                 case (int)CommandId.Text:
@@ -146,6 +187,27 @@ namespace WpfApp1
                 case (int)CommandId.QpskResult:
                     string qpskText = Encoding.ASCII.GetString(msgPayload);
                     textBoxReception.Text += "[QPSK Demodulated] : " + qpskText + "\n";
+                    break;
+                case (int)CommandId.IQ_DATA:
+                    byte type = msgPayload[0];
+                    sbyte i = (sbyte)msgPayload[1];
+                    sbyte q = (sbyte)msgPayload[2];
+                    if (type == (byte)'T')
+                    {
+                        double iNorm = i / 127.0;
+                        double qNorm = q / 127.0;
+                        txI.Add(iNorm);
+                        txQ.Add(qNorm);
+                        UpdateConstellationPlotTX();
+                    }
+                    if (type == (byte)'R')
+                    {
+                        double iNorm = i / 127.0;
+                        double qNorm = q / 127.0;
+                        txI.Add(iNorm);
+                        txQ.Add(qNorm);
+                        UpdateConstellationPlotRX();
+                    }
                     break;
                 default:
                     break;
@@ -223,12 +285,12 @@ namespace WpfApp1
 
                     if (receivedChecksum == calculatedChecksum)
                     {
-                        textBoxReception.Text += "\n";
+                        /*textBoxReception.Text += "\n";
                         textBoxReception.Text += "Valid Message \n";
                         textBoxReception.Text += "Function : " + msgDecodedFunction + "\n";
                         textBoxReception.Text += "Payload Length: " + msgDecodedPayloadLength + "\n";
                         textBoxReception.Text += "Payload : " + Encoding.ASCII.GetString(msgDecodedPayload) + "\n";
-
+                        */
                         // Affichage hexadécimal pour debug :
                         /*textBoxReception.Text += "Payload HEX : ";
                         for (int i = 0; i < msgDecodedPayloadLength; i++)
