@@ -30,8 +30,7 @@
               "RelativeToolTip": "WpfApp1\\MainWindow.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
               "WhenOpened": "2025-05-07T05:50:54.529Z",
-              "IsPinned": true,
-              "EditorCaption": ""
+              "IsPinned": true
             },
             {
               "$type": "Document",
@@ -41,7 +40,7 @@
               "RelativeDocumentMoniker": "WpfApp1\\MainWindow.xaml.cs",
               "ToolTip": "C:\\Users\\adeas\\Documents\\GitHub\\Low-Cost UnderWater Communication System for Fish-Type Robot\\C#\\PC Interface\\GUICOM\\WpfApp1\\MainWindow.xaml.cs",
               "RelativeToolTip": "WpfApp1\\MainWindow.xaml.cs",
-              "ViewState": "AgIAALoAAAAAAAAAAAAUwMwAAAAwAAAAAAAAAA==",
+              "ViewState": "AgIAAMkAAAAAAAAAAAAUwNEAAAAVAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-05-07T05:44:59.45Z",
               "IsPinned": true,

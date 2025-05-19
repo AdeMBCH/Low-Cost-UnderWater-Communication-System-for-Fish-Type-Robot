@@ -211,7 +211,6 @@ namespace WpfApp1
                     break;
                 default:
                     break;
-
             }
         }
 

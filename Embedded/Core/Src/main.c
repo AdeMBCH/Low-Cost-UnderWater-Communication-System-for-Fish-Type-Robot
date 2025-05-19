@@ -57,6 +57,11 @@ UART_HandleTypeDef huart2;
 QpskModem modem;
 QpskRingBuffer tx_ringbuf, rx_ringbuf;
 
+volatile uint8_t bits_to_send[MAX_BITS];
+volatile uint16_t num_bits_to_send = 0;
+volatile uint16_t bit_idx = 0;
+volatile uint8_t transmitting = 0;
+
 /* USER CODE BEGIN PV */
 /* USER CODE END PV */
 
@@ -80,6 +85,8 @@ static void MX_ADC1_Init(void);
 
 }
 */
+
+/*//VRAI QUI MARCHE
 void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
 {
     if (cmd == CMD_QPSK_MOD_DEMOD) {
@@ -100,7 +107,35 @@ void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* p
 
        UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, data_out);
     }
+}*/
+
+void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
+{
+    if (cmd == CMD_QPSK_MOD_DEMOD) {
+        QpskRingBuffer_Init(&tx_ringbuf);
+        QpskRingBuffer_Init(&rx_ringbuf);
+        QpskModem_Modulate(&huart2, &modem, payload, len);
+        QpskModem_SymbolsToIQ(&modem);
+        QpskModem_GenerateSignal(&modem, &tx_ringbuf, 1.0f);
+        Qpsk_SimulateReception(&tx_ringbuf, &rx_ringbuf);
+        uint8_t data_out[QPSK_MAX_SYMBOLS/4];
+        uint16_t len_out = 0;
+        QpskModem_Demodulate(&huart2,&modem, &rx_ringbuf, data_out, &len_out);
+
+        // Conversion QPSK symbols to bits for LED transmission
+        num_bits_to_send = 0;
+        for (uint16_t i = 0; i < modem.num_symbols; i++) {
+            uint8_t symbol = modem.symbols[i]; // 2 bits
+            bits_to_send[num_bits_to_send++] = (symbol >> 1) & 0x01; // MSB
+            bits_to_send[num_bits_to_send++] = symbol & 0x01;        // LSB
+        }
+        bit_idx = 0;
+        transmitting = 1; // Flag pour démarrer la transmission LED
+
+        UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, data_out);
+    }
 }
+
 
 /* USER CODE END 0 */
 
@@ -139,20 +174,36 @@ int main(void)
 	UartProtocol_Init(&proto, OnFrameReceived);
 
 	QpskModem_Init(&modem, 16, 40000.0f, 640000.0f);
+
+	uint32_t last_toggle = 0;
+	uint32_t period_ms = 200; // 200ms => 2.5Hz
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   uint8_t c;
+  uint32_t last_bit_tick = 0;
+  const uint32_t bit_duration_ms = 20; // Durée d'un bit (ajuste selon ta caméra)
+
   while (1)
   {
-    /* USER CODE END WHILE */
+      if (HAL_UART_Receive(&huart2, &c, 1, 10) == HAL_OK) {
+          UartProtocol_ParseByte(&proto, c);
+      }
 
-    /* USER CODE BEGIN 3 */
-	  if (HAL_UART_Receive(&huart2, &c, 1, 10) == HAL_OK) {
-		  UartProtocol_ParseByte(&proto, c); // This will parse the protocol and echo the whole frame
-	    }
-    }
+      // Transmission LED
+      if (transmitting && (HAL_GetTick() - last_bit_tick >= bit_duration_ms)) {
+          if (bit_idx < num_bits_to_send) {
+              uint8_t bit = bits_to_send[bit_idx++];
+              HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, bit ? GPIO_PIN_SET : GPIO_PIN_RESET);
+              last_bit_tick = HAL_GetTick();
+          } else {
+              // Fin de transmission
+              HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+              transmitting = 0;
+          }
+      }
+  }
     // Optionally add a small delay or other tasks
   /* USER CODE END 3 */
 }
@@ -291,7 +342,13 @@ static void MX_USART2_UART_Init(void)
 static void MX_GPIO_Init(void)
 {
   /* USER CODE BEGIN MX_GPIO_Init_1 */
-
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+	GPIO_InitStruct.Pin = GPIO_PIN_5;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
