@@ -12,9 +12,7 @@
 #define CMD_QPSK_RESULT    0x9010
 #define CMD_IQ_DATA 0x55AA
 
-
-#define LED_GPIO_PORT GPIOA
-#define LED_GPIO_PIN  GPIO_PIN_5
+#define QPSK_MAX_SYMBOLS 256
 
 #define MAX_BITS 512
 

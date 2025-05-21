@@ -20,6 +20,7 @@ namespace WpfApp1
         Robot robot = new Robot();
         private List<double> txI = new();
         private List<double> txQ = new();
+        private DispatcherTimer bonjourTimer;
 
         public MainWindow()
         {
@@ -29,6 +30,11 @@ namespace WpfApp1
             timerAffichage.Interval = new TimeSpan(0, 0, 0, 0, 100);
             timerAffichage.Tick += TimerAffichage_Tick;
             timerAffichage.Start();
+
+
+            bonjourTimer = new DispatcherTimer();
+            bonjourTimer.Interval = TimeSpan.FromSeconds(4);
+            bonjourTimer.Tick += BonjourTimer_Tick;
 
             serialPort1 = new ExtendedSerialPort("COM5", 115200, Parity.None, 8, StopBits.One);
             serialPort1.DataReceived += SerialPort1_DataReceived;
@@ -89,6 +95,7 @@ namespace WpfApp1
 
         private void buttonTest_Click(object sender, RoutedEventArgs e)
         {
+            /*
             string s = "Bonjour";
             byte[] msgPayload = Encoding.ASCII.GetBytes(s);
             int msgPayloadLength = msgPayload.Length;
@@ -96,6 +103,18 @@ namespace WpfApp1
             int msgFunction = (int)CommandId.QpskModDemod;
             UartEncodeAndSendMessage(msgFunction, msgPayloadLength, msgPayload);
             //SendTextMessage("Bonjour");
+            */
+            bonjourTimer.Stop();
+            bonjourTimer.Start();
+        }
+
+        private void BonjourTimer_Tick(object? sender, EventArgs e)
+        {
+            string s = "Bonjour";
+            byte[] msgPayload = Encoding.ASCII.GetBytes(s);
+            int msgPayloadLength = msgPayload.Length;
+            int msgFunction = (int)CommandId.QpskModDemod;
+            UartEncodeAndSendMessage(msgFunction, msgPayloadLength, msgPayload);
         }
 
 
