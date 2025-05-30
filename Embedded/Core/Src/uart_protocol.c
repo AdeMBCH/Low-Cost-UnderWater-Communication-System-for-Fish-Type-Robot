@@ -104,6 +104,21 @@ void UartProtocol_SendFrame(UART_HandleTypeDef* huart, uint16_t cmd, uint16_t le
     HAL_UART_Transmit(huart, tx_buf, pos, 100);
 }
 
+int UartProtocol_BuildFrame(uint16_t cmd, uint16_t len, uint8_t* payload, uint8_t* out_buf) {
+    int pos = 0;
+    out_buf[pos++] = 0xFE;
+    out_buf[pos++] = (cmd >> 8) & 0xFF;
+    out_buf[pos++] = (cmd >> 0) & 0xFF;
+    out_buf[pos++] = (len >> 8) & 0xFF;
+    out_buf[pos++] = (len >> 0) & 0xFF;
+    for (int i = 0; i < len; i++) {
+        out_buf[pos++] = payload[i];
+    }
+    uint8_t cs = CalcChecksum(cmd, len, payload);
+    out_buf[pos++] = cs;
+    return pos;
+}
+
 void SendIQFrame(UART_HandleTypeDef* huart, int8_t i, int8_t q) {
     uint8_t payload[3];
     payload[0] = 'T'; // Pour TX

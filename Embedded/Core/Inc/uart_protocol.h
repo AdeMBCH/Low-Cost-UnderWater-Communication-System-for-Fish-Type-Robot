@@ -45,6 +45,8 @@ void UartProtocol_ParseByte(UartProtocol* proto, uint8_t c);
 
 void UartProtocol_SendFrame(UART_HandleTypeDef* huart, uint16_t cmd, uint16_t len, uint8_t* payload);
 
+int UartProtocol_BuildFrame(uint16_t cmd, uint16_t len, uint8_t* payload, uint8_t* out_buf);
+
 void SendIQFrame(UART_HandleTypeDef* huart, int8_t i, int8_t q);
 
 #endif /* INC_UART_PROTOCOL_H_ */

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.IO.Ports;
 using System.Text;
 using System.Windows;
@@ -95,17 +96,44 @@ namespace WpfApp1
 
         private void buttonTest_Click(object sender, RoutedEventArgs e)
         {
-            /*
-            string s = "Bonjour";
+            //UN BONJOUR
+            
+            string s = "(10,3)";
             byte[] msgPayload = Encoding.ASCII.GetBytes(s);
             int msgPayloadLength = msgPayload.Length;
             //int msgFunction = (int)CommandId.Text;
             int msgFunction = (int)CommandId.QpskModDemod;
             UartEncodeAndSendMessage(msgFunction, msgPayloadLength, msgPayload);
             //SendTextMessage("Bonjour");
-            */
+            
+
+
+            //BONJOUR EN CONTINU
+            /*
             bonjourTimer.Stop();
             bonjourTimer.Start();
+            */
+
+            //RECEPTION TEST
+           //EnvoyerEtatsDirect("C:\\Users\\adeas\\Documents\\GitHub\\Low-Cost UnderWater Communication System for Fish-Type Robot\\C#\\PC Interface\\GUICOM\\WpfApp1\\led_states_symbols.csv");
+
+        }
+
+        private void EnvoyerEtatsDirect(string cheminCsv)
+        {
+            var lignes = File.ReadAllLines(cheminCsv);
+            for (int i = 1; i < lignes.Length; i++)
+            {
+                var parties = lignes[i].Split(',');
+                if (parties.Length >= 3)
+                {
+                    byte left = byte.Parse(parties[1]);
+                    byte right = byte.Parse(parties[2]);
+                    byte[] data = new byte[] { left, right };
+                    serialPort1.Write(data, 0, data.Length); // ENVOI DIRECT, SANS PROTOCOLE
+                    System.Threading.Thread.Sleep(20); // (optionnel, à ajuster)
+                }
+            }
         }
 
         private void BonjourTimer_Tick(object? sender, EventArgs e)

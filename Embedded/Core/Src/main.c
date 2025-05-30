@@ -144,6 +144,7 @@ void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* p
 }
 */
 
+
 void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
 {
     if (cmd == CMD_QPSK_MOD_DEMOD) {
@@ -168,6 +169,43 @@ void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* p
         UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, data_out);
     }
 }
+
+/*
+void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
+{
+    if (cmd == CMD_QPSK_MOD_DEMOD) {
+        // Étape 1 : construire la trame complète UART dans un buffer
+        uint8_t full_frame[6 + FRAME_MAX_PAYLOAD];
+        int frame_len = UartProtocol_BuildFrame(cmd, len, payload, full_frame);
+        if (frame_len < 0) return; // Erreur taille
+
+        // Étape 2 : modulation QPSK
+        QpskRingBuffer_Init(&tx_ringbuf);
+        QpskRingBuffer_Init(&rx_ringbuf);
+        QpskModem_Modulate(&huart2, &modem, full_frame, frame_len);
+        QpskModem_SymbolsToIQ(&modem);
+        QpskModem_GenerateSignal(&modem, &tx_ringbuf, 1.0f);
+        Qpsk_SimulateReception(&tx_ringbuf, &rx_ringbuf);
+
+        // Étape 3 : démodulation (pour test)
+        uint8_t data_out[QPSK_MAX_SYMBOLS/4];
+        uint16_t len_out = 0;
+        QpskModem_Demodulate(&huart2, &modem, &rx_ringbuf, data_out, &len_out);
+
+        // Étape 4 : préparer transmission optique (LED)
+        for (uint16_t i = 0; i < modem.num_symbols; ++i)
+            qpsk_symbols[i] = modem.symbols[i];
+
+        qpsk_num_symbols = modem.num_symbols;
+        qpsk_symbol_idx = 0;
+        qpsk_transmitting = 1;
+
+        UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, data_out);
+    }
+}*/
+
+
+
 
 /* USER CODE END 0 */
 
@@ -238,8 +276,51 @@ int main(void)
   }*/
 
   uint32_t last_symbol_tick = 0;
-  const uint32_t symbol_duration_ms = 83; // Ajuste selon la caméra
+  const uint32_t symbol_duration_ms = 1000; // Ajuste selon la caméra
 
+  void send_led_preamble(uint32_t symbol_duration_ms) {
+      // Ex : 8 symboles alternés
+      for (int i = 0; i < 8; ++i) {
+          uint8_t left = (i % 2 == 0) ? 1 : 0;
+          uint8_t right = (i % 2 == 1) ? 1 : 0;
+          HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, left ? GPIO_PIN_SET : GPIO_PIN_RESET);   // LED_A
+          HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, right ? GPIO_PIN_SET : GPIO_PIN_RESET);  // LED_B
+          HAL_Delay(symbol_duration_ms); // ou utilise ton timer pour la précision
+      }
+      // Éteindre les LEDs à la fin du préambule
+      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
+  }
+
+  while (1)
+  {
+      if (HAL_UART_Receive(&huart2, &c, 1, 10) == HAL_OK) {
+          UartProtocol_ParseByte(&proto, c);
+      }
+
+      // Transmission QPSK optique
+      if (qpsk_transmitting && (HAL_GetTick() - last_symbol_tick >= symbol_duration_ms)) {
+          if (qpsk_symbol_idx == 0) {
+              // Juste avant de commencer la transmission QPSK, envoie le préambule
+              send_led_preamble(symbol_duration_ms);
+          }
+
+          if (qpsk_symbol_idx < qpsk_num_symbols) {
+              uint8_t symbol = qpsk_symbols[qpsk_symbol_idx++];
+              uint8_t bit0 = (symbol >> 1) & 0x01; // MSB
+              uint8_t bit1 = symbol & 0x01;        // LSB
+              HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, bit0 ? GPIO_PIN_SET : GPIO_PIN_RESET); // LED_A
+              HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, bit1 ? GPIO_PIN_SET : GPIO_PIN_RESET); // LED_B
+              last_symbol_tick = HAL_GetTick();
+          } else {
+              HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+              HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
+              qpsk_transmitting = 0;
+          }
+      }
+  }
+
+/*
   while (1)
   {
       if (HAL_UART_Receive(&huart2, &c, 1, 10) == HAL_OK) {
@@ -263,8 +344,8 @@ int main(void)
               qpsk_transmitting = 0;
           }
       }
-  }
-    // Optionally add a small delay or other tasks
+  }*/
+
   /* USER CODE END 3 */
 }
 

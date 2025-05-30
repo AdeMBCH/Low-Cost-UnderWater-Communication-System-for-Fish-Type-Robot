@@ -2,4 +2,5 @@
 ../Core/Src/uart_protocol.c:26:6:UartProtocol_Init	16	static
 ../Core/Src/uart_protocol.c:36:6:UartProtocol_ParseByte	24	static
 ../Core/Src/uart_protocol.c:91:6:UartProtocol_SendFrame	304	static
-../Core/Src/uart_protocol.c:107:6:SendIQFrame	24	static
+../Core/Src/uart_protocol.c:107:5:UartProtocol_BuildFrame	40	static
+../Core/Src/uart_protocol.c:122:6:SendIQFrame	24	static
