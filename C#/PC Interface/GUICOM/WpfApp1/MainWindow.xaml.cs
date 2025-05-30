@@ -169,7 +169,7 @@ namespace WpfApp1
             scatter.Color = ScottPlot.Color.FromHex("#FF0000"); 
             scatter.LineWidth = 0;
 
-            WpfPlotRx.Plot.Title("Constellation TX");
+            WpfPlotRx.Plot.Title("Constellation RX");
             WpfPlotRx.Plot.Axes.SetLimits(-1.5, 1.5, -1.5, 1.5);
             WpfPlotRx.Refresh();
         }
