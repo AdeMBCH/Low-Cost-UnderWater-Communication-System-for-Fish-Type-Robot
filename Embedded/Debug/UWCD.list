@@ -1023,7 +1023,7 @@ void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* p
   }*/
 
   uint32_t last_symbol_tick = 0;
-  const uint32_t symbol_duration_ms = 1000; // Ajuste selon la caméra
+  const uint32_t symbol_duration_ms = 100; // Ajuste selon la caméra
 
   void send_led_preamble(uint32_t symbol_duration_ms) {
  8000c5c:	b580      	push	{r7, lr}
@@ -1141,133 +1141,134 @@ int main(void)
   uint32_t last_symbol_tick = 0;
  8000d36:	2300      	movs	r3, #0
  8000d38:	f8c7 3124 	str.w	r3, [r7, #292]	@ 0x124
-  const uint32_t symbol_duration_ms = 1000; // Ajuste selon la caméra
- 8000d3c:	f44f 737a 	mov.w	r3, #1000	@ 0x3e8
- 8000d40:	f8c7 3120 	str.w	r3, [r7, #288]	@ 0x120
+  const uint32_t symbol_duration_ms = 100; // Ajuste selon la caméra
+ 8000d3c:	2364      	movs	r3, #100	@ 0x64
+ 8000d3e:	f8c7 3120 	str.w	r3, [r7, #288]	@ 0x120
 
   while (1)
   {
       if (HAL_UART_Receive(&huart2, &c, 1, 10) == HAL_OK) {
- 8000d44:	1df9      	adds	r1, r7, #7
- 8000d46:	230a      	movs	r3, #10
- 8000d48:	2201      	movs	r2, #1
- 8000d4a:	4840      	ldr	r0, [pc, #256]	@ (8000e4c <main+0x154>)
- 8000d4c:	f002 fbab 	bl	80034a6 <HAL_UART_Receive>
- 8000d50:	4603      	mov	r3, r0
- 8000d52:	2b00      	cmp	r3, #0
- 8000d54:	d10a      	bne.n	8000d6c <main+0x74>
+ 8000d42:	1df9      	adds	r1, r7, #7
+ 8000d44:	230a      	movs	r3, #10
+ 8000d46:	2201      	movs	r2, #1
+ 8000d48:	4840      	ldr	r0, [pc, #256]	@ (8000e4c <main+0x154>)
+ 8000d4a:	f002 fbac 	bl	80034a6 <HAL_UART_Receive>
+ 8000d4e:	4603      	mov	r3, r0
+ 8000d50:	2b00      	cmp	r3, #0
+ 8000d52:	d10a      	bne.n	8000d6a <main+0x72>
           UartProtocol_ParseByte(&proto, c);
- 8000d56:	f507 7394 	add.w	r3, r7, #296	@ 0x128
- 8000d5a:	f2a3 1321 	subw	r3, r3, #289	@ 0x121
- 8000d5e:	781a      	ldrb	r2, [r3, #0]
- 8000d60:	f107 0308 	add.w	r3, r7, #8
- 8000d64:	4611      	mov	r1, r2
- 8000d66:	4618      	mov	r0, r3
- 8000d68:	f000 ff0e 	bl	8001b88 <UartProtocol_ParseByte>
+ 8000d54:	f507 7394 	add.w	r3, r7, #296	@ 0x128
+ 8000d58:	f2a3 1321 	subw	r3, r3, #289	@ 0x121
+ 8000d5c:	781a      	ldrb	r2, [r3, #0]
+ 8000d5e:	f107 0308 	add.w	r3, r7, #8
+ 8000d62:	4611      	mov	r1, r2
+ 8000d64:	4618      	mov	r0, r3
+ 8000d66:	f000 ff0f 	bl	8001b88 <UartProtocol_ParseByte>
       }
 
       // Transmission QPSK optique
       if (qpsk_transmitting && (HAL_GetTick() - last_symbol_tick >= symbol_duration_ms)) {
- 8000d6c:	4b38      	ldr	r3, [pc, #224]	@ (8000e50 <main+0x158>)
- 8000d6e:	781b      	ldrb	r3, [r3, #0]
- 8000d70:	b2db      	uxtb	r3, r3
- 8000d72:	2b00      	cmp	r3, #0
- 8000d74:	d0e6      	beq.n	8000d44 <main+0x4c>
- 8000d76:	f001 f93d 	bl	8001ff4 <HAL_GetTick>
- 8000d7a:	4602      	mov	r2, r0
- 8000d7c:	f8d7 3124 	ldr.w	r3, [r7, #292]	@ 0x124
- 8000d80:	1ad3      	subs	r3, r2, r3
- 8000d82:	f8d7 2120 	ldr.w	r2, [r7, #288]	@ 0x120
- 8000d86:	429a      	cmp	r2, r3
- 8000d88:	d8dc      	bhi.n	8000d44 <main+0x4c>
+ 8000d6a:	4b39      	ldr	r3, [pc, #228]	@ (8000e50 <main+0x158>)
+ 8000d6c:	781b      	ldrb	r3, [r3, #0]
+ 8000d6e:	b2db      	uxtb	r3, r3
+ 8000d70:	2b00      	cmp	r3, #0
+ 8000d72:	d0e6      	beq.n	8000d42 <main+0x4a>
+ 8000d74:	f001 f93e 	bl	8001ff4 <HAL_GetTick>
+ 8000d78:	4602      	mov	r2, r0
+ 8000d7a:	f8d7 3124 	ldr.w	r3, [r7, #292]	@ 0x124
+ 8000d7e:	1ad3      	subs	r3, r2, r3
+ 8000d80:	f8d7 2120 	ldr.w	r2, [r7, #288]	@ 0x120
+ 8000d84:	429a      	cmp	r2, r3
+ 8000d86:	d8dc      	bhi.n	8000d42 <main+0x4a>
           if (qpsk_symbol_idx == 0) {
- 8000d8a:	4b32      	ldr	r3, [pc, #200]	@ (8000e54 <main+0x15c>)
- 8000d8c:	881b      	ldrh	r3, [r3, #0]
- 8000d8e:	b29b      	uxth	r3, r3
- 8000d90:	2b00      	cmp	r3, #0
- 8000d92:	d106      	bne.n	8000da2 <main+0xaa>
+ 8000d88:	4b32      	ldr	r3, [pc, #200]	@ (8000e54 <main+0x15c>)
+ 8000d8a:	881b      	ldrh	r3, [r3, #0]
+ 8000d8c:	b29b      	uxth	r3, r3
+ 8000d8e:	2b00      	cmp	r3, #0
+ 8000d90:	d106      	bne.n	8000da0 <main+0xa8>
               // Juste avant de commencer la transmission QPSK, envoie le préambule
               send_led_preamble(symbol_duration_ms);
- 8000d94:	f507 738c 	add.w	r3, r7, #280	@ 0x118
- 8000d98:	469c      	mov	ip, r3
- 8000d9a:	f8d7 0120 	ldr.w	r0, [r7, #288]	@ 0x120
- 8000d9e:	f7ff ff5d 	bl	8000c5c <send_led_preamble.0>
+ 8000d92:	f507 738c 	add.w	r3, r7, #280	@ 0x118
+ 8000d96:	469c      	mov	ip, r3
+ 8000d98:	f8d7 0120 	ldr.w	r0, [r7, #288]	@ 0x120
+ 8000d9c:	f7ff ff5e 	bl	8000c5c <send_led_preamble.0>
           }
 
           if (qpsk_symbol_idx < qpsk_num_symbols) {
- 8000da2:	4b2c      	ldr	r3, [pc, #176]	@ (8000e54 <main+0x15c>)
- 8000da4:	881b      	ldrh	r3, [r3, #0]
- 8000da6:	b29a      	uxth	r2, r3
- 8000da8:	4b2b      	ldr	r3, [pc, #172]	@ (8000e58 <main+0x160>)
- 8000daa:	881b      	ldrh	r3, [r3, #0]
- 8000dac:	b29b      	uxth	r3, r3
- 8000dae:	429a      	cmp	r2, r3
- 8000db0:	d236      	bcs.n	8000e20 <main+0x128>
+ 8000da0:	4b2c      	ldr	r3, [pc, #176]	@ (8000e54 <main+0x15c>)
+ 8000da2:	881b      	ldrh	r3, [r3, #0]
+ 8000da4:	b29a      	uxth	r2, r3
+ 8000da6:	4b2c      	ldr	r3, [pc, #176]	@ (8000e58 <main+0x160>)
+ 8000da8:	881b      	ldrh	r3, [r3, #0]
+ 8000daa:	b29b      	uxth	r3, r3
+ 8000dac:	429a      	cmp	r2, r3
+ 8000dae:	d236      	bcs.n	8000e1e <main+0x126>
               uint8_t symbol = qpsk_symbols[qpsk_symbol_idx++];
- 8000db2:	4b28      	ldr	r3, [pc, #160]	@ (8000e54 <main+0x15c>)
- 8000db4:	881b      	ldrh	r3, [r3, #0]
- 8000db6:	b29b      	uxth	r3, r3
- 8000db8:	1c5a      	adds	r2, r3, #1
- 8000dba:	b291      	uxth	r1, r2
- 8000dbc:	4a25      	ldr	r2, [pc, #148]	@ (8000e54 <main+0x15c>)
- 8000dbe:	8011      	strh	r1, [r2, #0]
- 8000dc0:	461a      	mov	r2, r3
- 8000dc2:	4b26      	ldr	r3, [pc, #152]	@ (8000e5c <main+0x164>)
- 8000dc4:	5c9b      	ldrb	r3, [r3, r2]
- 8000dc6:	f887 311f 	strb.w	r3, [r7, #287]	@ 0x11f
+ 8000db0:	4b28      	ldr	r3, [pc, #160]	@ (8000e54 <main+0x15c>)
+ 8000db2:	881b      	ldrh	r3, [r3, #0]
+ 8000db4:	b29b      	uxth	r3, r3
+ 8000db6:	1c5a      	adds	r2, r3, #1
+ 8000db8:	b291      	uxth	r1, r2
+ 8000dba:	4a26      	ldr	r2, [pc, #152]	@ (8000e54 <main+0x15c>)
+ 8000dbc:	8011      	strh	r1, [r2, #0]
+ 8000dbe:	461a      	mov	r2, r3
+ 8000dc0:	4b26      	ldr	r3, [pc, #152]	@ (8000e5c <main+0x164>)
+ 8000dc2:	5c9b      	ldrb	r3, [r3, r2]
+ 8000dc4:	f887 311f 	strb.w	r3, [r7, #287]	@ 0x11f
               uint8_t bit0 = (symbol >> 1) & 0x01; // MSB
- 8000dca:	f897 311f 	ldrb.w	r3, [r7, #287]	@ 0x11f
- 8000dce:	085b      	lsrs	r3, r3, #1
- 8000dd0:	b2db      	uxtb	r3, r3
- 8000dd2:	f003 0301 	and.w	r3, r3, #1
- 8000dd6:	f887 311e 	strb.w	r3, [r7, #286]	@ 0x11e
+ 8000dc8:	f897 311f 	ldrb.w	r3, [r7, #287]	@ 0x11f
+ 8000dcc:	085b      	lsrs	r3, r3, #1
+ 8000dce:	b2db      	uxtb	r3, r3
+ 8000dd0:	f003 0301 	and.w	r3, r3, #1
+ 8000dd4:	f887 311e 	strb.w	r3, [r7, #286]	@ 0x11e
               uint8_t bit1 = symbol & 0x01;        // LSB
- 8000dda:	f897 311f 	ldrb.w	r3, [r7, #287]	@ 0x11f
- 8000dde:	f003 0301 	and.w	r3, r3, #1
- 8000de2:	f887 311d 	strb.w	r3, [r7, #285]	@ 0x11d
+ 8000dd8:	f897 311f 	ldrb.w	r3, [r7, #287]	@ 0x11f
+ 8000ddc:	f003 0301 	and.w	r3, r3, #1
+ 8000de0:	f887 311d 	strb.w	r3, [r7, #285]	@ 0x11d
               HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, bit0 ? GPIO_PIN_SET : GPIO_PIN_RESET); // LED_A
- 8000de6:	f897 311e 	ldrb.w	r3, [r7, #286]	@ 0x11e
- 8000dea:	2b00      	cmp	r3, #0
- 8000dec:	bf14      	ite	ne
- 8000dee:	2301      	movne	r3, #1
- 8000df0:	2300      	moveq	r3, #0
- 8000df2:	b2db      	uxtb	r3, r3
- 8000df4:	461a      	mov	r2, r3
- 8000df6:	2120      	movs	r1, #32
- 8000df8:	4819      	ldr	r0, [pc, #100]	@ (8000e60 <main+0x168>)
- 8000dfa:	f001 fe07 	bl	8002a0c <HAL_GPIO_WritePin>
+ 8000de4:	f897 311e 	ldrb.w	r3, [r7, #286]	@ 0x11e
+ 8000de8:	2b00      	cmp	r3, #0
+ 8000dea:	bf14      	ite	ne
+ 8000dec:	2301      	movne	r3, #1
+ 8000dee:	2300      	moveq	r3, #0
+ 8000df0:	b2db      	uxtb	r3, r3
+ 8000df2:	461a      	mov	r2, r3
+ 8000df4:	2120      	movs	r1, #32
+ 8000df6:	481a      	ldr	r0, [pc, #104]	@ (8000e60 <main+0x168>)
+ 8000df8:	f001 fe08 	bl	8002a0c <HAL_GPIO_WritePin>
               HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, bit1 ? GPIO_PIN_SET : GPIO_PIN_RESET); // LED_B
- 8000dfe:	f897 311d 	ldrb.w	r3, [r7, #285]	@ 0x11d
- 8000e02:	2b00      	cmp	r3, #0
- 8000e04:	bf14      	ite	ne
- 8000e06:	2301      	movne	r3, #1
- 8000e08:	2300      	moveq	r3, #0
- 8000e0a:	b2db      	uxtb	r3, r3
- 8000e0c:	461a      	mov	r2, r3
- 8000e0e:	2140      	movs	r1, #64	@ 0x40
- 8000e10:	4813      	ldr	r0, [pc, #76]	@ (8000e60 <main+0x168>)
- 8000e12:	f001 fdfb 	bl	8002a0c <HAL_GPIO_WritePin>
+ 8000dfc:	f897 311d 	ldrb.w	r3, [r7, #285]	@ 0x11d
+ 8000e00:	2b00      	cmp	r3, #0
+ 8000e02:	bf14      	ite	ne
+ 8000e04:	2301      	movne	r3, #1
+ 8000e06:	2300      	moveq	r3, #0
+ 8000e08:	b2db      	uxtb	r3, r3
+ 8000e0a:	461a      	mov	r2, r3
+ 8000e0c:	2140      	movs	r1, #64	@ 0x40
+ 8000e0e:	4814      	ldr	r0, [pc, #80]	@ (8000e60 <main+0x168>)
+ 8000e10:	f001 fdfc 	bl	8002a0c <HAL_GPIO_WritePin>
               last_symbol_tick = HAL_GetTick();
- 8000e16:	f001 f8ed 	bl	8001ff4 <HAL_GetTick>
- 8000e1a:	f8c7 0124 	str.w	r0, [r7, #292]	@ 0x124
- 8000e1e:	e791      	b.n	8000d44 <main+0x4c>
+ 8000e14:	f001 f8ee 	bl	8001ff4 <HAL_GetTick>
+ 8000e18:	f8c7 0124 	str.w	r0, [r7, #292]	@ 0x124
+ 8000e1c:	e791      	b.n	8000d42 <main+0x4a>
           } else {
               HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
- 8000e20:	2200      	movs	r2, #0
- 8000e22:	2120      	movs	r1, #32
- 8000e24:	480e      	ldr	r0, [pc, #56]	@ (8000e60 <main+0x168>)
- 8000e26:	f001 fdf1 	bl	8002a0c <HAL_GPIO_WritePin>
+ 8000e1e:	2200      	movs	r2, #0
+ 8000e20:	2120      	movs	r1, #32
+ 8000e22:	480f      	ldr	r0, [pc, #60]	@ (8000e60 <main+0x168>)
+ 8000e24:	f001 fdf2 	bl	8002a0c <HAL_GPIO_WritePin>
               HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
- 8000e2a:	2200      	movs	r2, #0
- 8000e2c:	2140      	movs	r1, #64	@ 0x40
- 8000e2e:	480c      	ldr	r0, [pc, #48]	@ (8000e60 <main+0x168>)
- 8000e30:	f001 fdec 	bl	8002a0c <HAL_GPIO_WritePin>
+ 8000e28:	2200      	movs	r2, #0
+ 8000e2a:	2140      	movs	r1, #64	@ 0x40
+ 8000e2c:	480c      	ldr	r0, [pc, #48]	@ (8000e60 <main+0x168>)
+ 8000e2e:	f001 fded 	bl	8002a0c <HAL_GPIO_WritePin>
               qpsk_transmitting = 0;
- 8000e34:	4b06      	ldr	r3, [pc, #24]	@ (8000e50 <main+0x158>)
- 8000e36:	2200      	movs	r2, #0
- 8000e38:	701a      	strb	r2, [r3, #0]
+ 8000e32:	4b07      	ldr	r3, [pc, #28]	@ (8000e50 <main+0x158>)
+ 8000e34:	2200      	movs	r2, #0
+ 8000e36:	701a      	strb	r2, [r3, #0]
       if (HAL_UART_Receive(&huart2, &c, 1, 10) == HAL_OK) {
- 8000e3a:	e783      	b.n	8000d44 <main+0x4c>
+ 8000e38:	e783      	b.n	8000d42 <main+0x4a>
+ 8000e3a:	bf00      	nop
  8000e3c:	08000b71 	.word	0x08000b71
  8000e40:	491c4000 	.word	0x491c4000
  8000e44:	471c4000 	.word	0x471c4000

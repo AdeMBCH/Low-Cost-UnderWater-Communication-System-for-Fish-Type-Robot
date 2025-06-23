@@ -276,7 +276,7 @@ int main(void)
   }*/
 
   uint32_t last_symbol_tick = 0;
-  const uint32_t symbol_duration_ms = 1000; // Ajuste selon la caméra
+  const uint32_t symbol_duration_ms = 100; // Ajuste selon la caméra
 
   void send_led_preamble(uint32_t symbol_duration_ms) {
       // Ex : 8 symboles alternés

@@ -37,7 +37,7 @@ namespace WpfApp1
             bonjourTimer.Interval = TimeSpan.FromSeconds(4);
             bonjourTimer.Tick += BonjourTimer_Tick;
 
-            serialPort1 = new ExtendedSerialPort("COM5", 115200, Parity.None, 8, StopBits.One);
+            serialPort1 = new ExtendedSerialPort("COM6", 115200, Parity.None, 8, StopBits.One);
             serialPort1.DataReceived += SerialPort1_DataReceived;
             serialPort1.Open();
         }
@@ -90,15 +90,15 @@ namespace WpfApp1
         private void buttonClear_Click(object sender, RoutedEventArgs e)
         {
             textBoxReception.Clear();
-            WpfPlotTx.Plot.Clear();
-            WpfPlotRx.Plot.Clear();
+            //WpfPlotTx.Plot.Clear();
+            //WpfPlotRx.Plot.Clear();
         }
 
         private void buttonTest_Click(object sender, RoutedEventArgs e)
         {
             //UN BONJOUR
-            
-            string s = "(10,3)";
+            /*
+            string s = "Bonjour";
             byte[] msgPayload = Encoding.ASCII.GetBytes(s);
             int msgPayloadLength = msgPayload.Length;
             //int msgFunction = (int)CommandId.Text;
@@ -106,13 +106,13 @@ namespace WpfApp1
             UartEncodeAndSendMessage(msgFunction, msgPayloadLength, msgPayload);
             //SendTextMessage("Bonjour");
             
-
+            */
 
             //BONJOUR EN CONTINU
-            /*
+            
             bonjourTimer.Stop();
             bonjourTimer.Start();
-            */
+            
 
             //RECEPTION TEST
            //EnvoyerEtatsDirect("C:\\Users\\adeas\\Documents\\GitHub\\Low-Cost UnderWater Communication System for Fish-Type Robot\\C#\\PC Interface\\GUICOM\\WpfApp1\\led_states_symbols.csv");
@@ -135,17 +135,36 @@ namespace WpfApp1
                 }
             }
         }
-
+        
         private void BonjourTimer_Tick(object? sender, EventArgs e)
         {
-            string s = "Bonjour";
+            string s = "1.5";
             byte[] msgPayload = Encoding.ASCII.GetBytes(s);
             int msgPayloadLength = msgPayload.Length;
             int msgFunction = (int)CommandId.QpskModDemod;
             UartEncodeAndSendMessage(msgFunction, msgPayloadLength, msgPayload);
         }
+        /*
+        private double currentValue = 5.0; 
 
+        private void BonjourTimer_Tick(object? sender, EventArgs e)
+        {
+            if (currentValue <= 30.0)
+            {
+                string s = currentValue.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+                byte[] msgPayload = Encoding.ASCII.GetBytes(s);
+                int msgPayloadLength = msgPayload.Length;
+                int msgFunction = (int)CommandId.QpskModDemod;
+                UartEncodeAndSendMessage(msgFunction, msgPayloadLength, msgPayload);
 
+                currentValue += 0.1; // Incrémente de 0.1 à chaque tick
+                currentValue = Math.Round(currentValue, 1); // Pour éviter les erreurs d'arrondi flottant
+            }
+        }
+
+        */
+
+        /*
         private void UpdateConstellationPlotTX()
         {
             WpfPlotTx.Plot.Clear();
@@ -174,7 +193,7 @@ namespace WpfApp1
             WpfPlotRx.Refresh();
         }
 
-
+        */
 
 
 
@@ -235,7 +254,7 @@ namespace WpfApp1
                     string qpskText = Encoding.ASCII.GetString(msgPayload);
                     textBoxReception.Text += "[QPSK Demodulated] : " + qpskText + "\n";
                     break;
-                case (int)CommandId.IQ_DATA:
+                /*case (int)CommandId.IQ_DATA:
                     byte type = msgPayload[0];
                     sbyte i = (sbyte)msgPayload[1];
                     sbyte q = (sbyte)msgPayload[2];
@@ -255,7 +274,7 @@ namespace WpfApp1
                         txQ.Add(qNorm);
                         UpdateConstellationPlotRX();
                     }
-                    break;
+                    break;*/
                 default:
                     break;
             }
@@ -322,6 +341,7 @@ namespace WpfApp1
                     msgDecodedPayload[msgDecodedPayloadIndex++] = c;
                     if (msgDecodedPayloadIndex >= msgDecodedPayloadLength)
                     {
+
                         rcvState = StateReception.CheckSum;
                     }
                     break;

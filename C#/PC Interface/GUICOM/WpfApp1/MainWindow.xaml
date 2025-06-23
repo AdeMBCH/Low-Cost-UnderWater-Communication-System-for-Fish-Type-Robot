@@ -29,7 +29,5 @@
             <Button x:Name="buttonTest" Content="Test" HorizontalAlignment="Center" Margin="5" VerticalAlignment="Top" Click="buttonTest_Click" Padding="10,5,10,5" />
         </StackPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Grid.Row="2" Grid.Column="1" Width="0"/>
-        <ScottPlot:WpfPlot x:Name="WpfPlotTx" Margin="10,26,10,26" Grid.Row="3"/>
-        <ScottPlot:WpfPlot x:Name="WpfPlotRx" Margin="10,26,10,26"  Grid.Column="1" Grid.Row="3"/>
-    </Grid>
+        </Grid>
 </Window>
