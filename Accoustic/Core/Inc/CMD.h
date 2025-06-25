@@ -13,6 +13,8 @@
 #define CMD_IQ_DATA 0x55AA
 
 
+#define CMD_ASK_MOD_DEMOD 0x2020
+
 #define MAX_LED_STATES 256
 
 #define MAX_BITS 512

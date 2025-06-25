@@ -50,7 +50,7 @@ void IQTransmitter_Stop(void) {
     iq_tx.active = 0;
     HAL_TIM_Base_Stop_IT(&htim2);
 
-    // 🔧 Forcer la sortie à 0V
+    //Forcer la sortie à 0V
     uint16_t spi_word = MCP4922_Pack(0, 0); // canal A, valeur 0
     uint8_t spi_buf[2] = { (spi_word >> 8) & 0xFF, spi_word & 0xFF };
 
@@ -99,4 +99,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 void Enable_TIM2_Interrupt(void) {
     HAL_NVIC_SetPriority(TIM2_IRQn, 1, 0);
     HAL_NVIC_EnableIRQ(TIM2_IRQn);
+}
+
+uint8_t IQTransmitter_IsActive(void) {
+    return iq_tx.active;
 }

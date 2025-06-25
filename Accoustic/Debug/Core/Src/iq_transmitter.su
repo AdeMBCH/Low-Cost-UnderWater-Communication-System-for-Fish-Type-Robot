@@ -6,3 +6,4 @@
 ../Core/Src/iq_transmitter.c:49:6:IQTransmitter_Stop	16	static
 ../Core/Src/iq_transmitter.c:78:6:HAL_TIM_PeriodElapsedCallback	24	static
 ../Core/Src/iq_transmitter.c:99:6:Enable_TIM2_Interrupt	8	static
+../Core/Src/iq_transmitter.c:104:9:IQTransmitter_IsActive	4	static

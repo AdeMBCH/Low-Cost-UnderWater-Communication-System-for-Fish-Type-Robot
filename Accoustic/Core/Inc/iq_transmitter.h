@@ -29,4 +29,6 @@ void IQTransmitter_Stop(void);
 
 void Enable_TIM2_Interrupt(void);
 
+uint8_t IQTransmitter_IsActive(void);
+
 #endif /* INC_IQ_TRANSMITTER_H_ */

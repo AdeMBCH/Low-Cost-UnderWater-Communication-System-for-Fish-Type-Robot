@@ -25,8 +25,10 @@
 #include <stdint.h>
 #include "uart_protocol.h"
 #include "qpsk_modem.h"
+#include "ask_modem.h"
 #include "CMD.h"
 #include "iq_transmitter.h"
+#include <math.h>
 
 /* USER CODE END Includes */
 
@@ -37,8 +39,6 @@
 #define CMD_QPSK_MOD_DEMOD 0x1010
 #define CMD_QPSK_RESULT    0x9010
 #define CMD_IQ_DATA 0x55AA*/
-#define SAMPLE_RATE_HZ 640000
-#define SYMBOL_DURATION_US 1800
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -68,18 +68,19 @@ UART_HandleTypeDef huart2;
 #define ADC_BUF_LEN 4096
 uint16_t adc_buffer[ADC_BUF_LEN];
 
-QpskModem modem;
-QpskRingBuffer tx_ringbuf, rx_ringbuf;
-
 volatile uint8_t bits_to_send[MAX_BITS];
 volatile uint16_t num_bits_to_send = 0;
 volatile uint16_t bit_idx = 0;
 volatile uint8_t transmitting = 0;
 
-volatile uint8_t qpsk_symbols[QPSK_MAX_SYMBOLS];
-volatile uint16_t qpsk_num_symbols = 0;
-volatile uint16_t qpsk_symbol_idx = 0;
-volatile uint8_t qpsk_transmitting = 0;
+
+volatile uint8_t ready_to_demodulate = 0;
+
+static int16_t tx_signal[ASK_RINGBUF_SIZE];
+uint16_t tx_signal_len = 0;
+
+AskModem ask_modem;
+AskRingBuffer tx_ringbuf, rx_ringbuf;
 
 /* USER CODE END PV */
 
@@ -109,6 +110,82 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
     }
 }
 
+
+void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload) {
+    if (cmd == CMD_QPSK_MOD_DEMOD) {
+        AskRingBuffer_Init(&tx_ringbuf);
+        AskRingBuffer_Init(&rx_ringbuf);
+        AskModem_Init(&ask_modem, samples_per_symbol, 40000.0f, SAMPLE_RATE_HZ);
+        if (len > 4) len = 4;
+        AskModem_Modulate(&huart2, &ask_modem, payload, len, &tx_ringbuf, 1.0f);
+
+        tx_signal_len = 0;
+        while (!AskRingBuffer_IsEmpty(&tx_ringbuf) && tx_signal_len < ASK_RINGBUF_SIZE) {
+            tx_signal[tx_signal_len++] = AskRingBuffer_Get(&tx_ringbuf);
+        }
+
+        IQTransmitter_InitFromBuffer(tx_signal, tx_signal_len);
+        /*for (int i = 0; i < tx_signal_len; i++) {
+            SendIQFrame(&huart2, tx_signal[i], i);
+        }*/
+        IQTransmitter_Start();
+
+
+        // On laisse le main() gérer la suite
+        ready_to_demodulate = 1;
+    }
+}
+
+/*
+void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
+{
+    if (cmd == CMD_QPSK_MOD_DEMOD) {
+        AskRingBuffer_Init(&tx_ringbuf);
+        AskRingBuffer_Init(&rx_ringbuf);
+
+        // Modulate input bits into ASK waveform
+        AskModem_Modulate(&huart2, &ask_modem, payload, len, &tx_ringbuf, 1.0f);
+
+        // Convert buffer to linear signal array
+        static int16_t signal[ASK_RINGBUF_SIZE];
+        uint16_t len_signal = 0;
+        while (!AskRingBuffer_IsEmpty(&tx_ringbuf) && len_signal < ASK_RINGBUF_SIZE) {
+            signal[len_signal++] = AskRingBuffer_Get(&tx_ringbuf);
+        }
+		#define N 512
+		for (uint16_t i = 0; i < N; ++i) {
+			float t = (float)i / 640000.0f;
+			float s = cosf(2 * M_PI * 40000.0f * t);
+			signal[i] = (int16_t)(s * 2047.0f);
+		}
+		IQTransmitter_InitFromBuffer(signal, N);
+		IQTransmitter_Start();
+        // Transmit via SPI to MCP4922
+        //IQTransmitter_InitFromBuffer(signal, len_signal);
+        //IQTransmitter_Start();
+
+        // Acquire the real signal from PA0 (ADC1)
+        adc_ready = 0;
+        HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, ADC_BUF_LEN);
+        while (!adc_ready) {
+            HAL_Delay(1);
+        }
+
+        for (uint16_t i = 0; i < ADC_BUF_LEN; ++i) {
+            AskRingBuffer_Put(&rx_ringbuf, adc_buffer[i]);
+        }
+
+        // Demodulate ASK signal
+        uint8_t bits_out[ASK_MAX_BITS];
+        uint16_t len_out = 0;
+        AskModem_Demodulate(&huart2, &ask_modem, &rx_ringbuf, bits_out, &len_out);
+
+        // Send decoded bits over UART
+        UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, bits_out);
+    }
+}*/
+
+/*
 void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
 {
 	extern uint16_t samples_per_symbol;
@@ -154,7 +231,7 @@ void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* p
         // 7. Envoi du résultat démodulé par UART
         UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, data_out);
     }
-}
+}*/
 
 
 //VRAI DERNIER QUI MARCHAIT celuui en dessous
@@ -237,8 +314,7 @@ int main(void)
   //QpskModem_Init(&modem, 1, 40000.0f, 640000.0f);
   //QpskModem_Init(&modem, 400, 40000.0f, 200000.0f);
 
-  QpskModem_Init(&modem, samples_per_symbol, 40000.0f, SAMPLE_RATE_HZ);
-
+  //QpskModem_Init(&modem, samples_per_symbol, 40000.0f, SAMPLE_RATE_HZ);
 	//uint32_t last_toggle = 0;
 	//uint32_t period_ms = 200; // 200ms => 2.5Hz
   /* USER CODE END 2 */
@@ -250,12 +326,47 @@ int main(void)
   // Démarrage du Timer (doit être fait avant l’ADC)
   HAL_TIM_Base_Start(&htim3);
 
-
   while (1)
   {
-	  if (HAL_UART_Receive(&huart2, &c, 1, 10) == HAL_OK) {
-	      UartProtocol_ParseByte(&proto, c);
-	  }
+      if (HAL_UART_Receive(&huart2, &c, 1, 10) == HAL_OK) {
+          UartProtocol_ParseByte(&proto, c);
+      }
+
+      if (ready_to_demodulate && !IQTransmitter_IsActive()) {
+          ready_to_demodulate = 0;
+          adc_ready = 0;
+
+          HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, ADC_BUF_LEN);
+          while (!adc_ready) {
+              HAL_Delay(1);
+          }
+
+          AskRingBuffer_Init(&rx_ringbuf);
+          for (uint16_t i = 0; i < ADC_BUF_LEN; ++i) {
+              AskRingBuffer_Put(&rx_ringbuf, adc_buffer[i]);
+          }
+
+          uint8_t bits_out[ASK_MAX_BITS];
+          uint16_t len_out = 0;
+          AskModem_Demodulate(&huart2, &ask_modem, &rx_ringbuf, bits_out, &len_out);
+
+          // Regroupe les bits 8 par 8 pour reconstruire les caractères
+          uint8_t decoded_chars[ASK_MAX_BITS / 8] = {0};
+          uint16_t num_chars = 0;
+
+          for (uint16_t i = 0; i + 7 < len_out; i += 8) {
+              uint8_t byte = 0;
+              for (uint8_t b = 0; b < 8; b++) {
+                  byte = (byte << 1) | bits_out[i + b];  // MSB-first
+              }
+              decoded_chars[num_chars++] = byte;
+          }
+
+          // Envoie à l'interface PC
+          UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, num_chars, decoded_chars);
+
+          //UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, bits_out);
+      }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -415,7 +526,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = (84000000 / 100000) - 1;
+  htim2.Init.Period = (84000000 / SAMPLE_RATE_HZ) - 1;;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)

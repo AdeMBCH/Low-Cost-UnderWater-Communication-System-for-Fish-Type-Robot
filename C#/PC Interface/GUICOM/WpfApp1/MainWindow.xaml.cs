@@ -90,8 +90,8 @@ namespace WpfApp1
         private void buttonClear_Click(object sender, RoutedEventArgs e)
         {
             textBoxReception.Clear();
-            //WpfPlotTx.Plot.Clear();
-            //WpfPlotRx.Plot.Clear();
+            WpfPlotTx.Plot.Clear();
+            WpfPlotRx.Plot.Clear();
         }
 
         private void buttonTest_Click(object sender, RoutedEventArgs e)
@@ -164,7 +164,16 @@ namespace WpfApp1
 
         */
 
-        /*
+        private void UpdateWaveformPlotTX()
+        {
+            WpfPlotTx.Plot.Clear();
+
+            var scatter = WpfPlotTx.Plot.Add.Scatter(txQ.ToArray(), txI.ToArray());
+            WpfPlotTx.Plot.Title("Signal TX (ASK)");
+            WpfPlotTx.Plot.XLabel("Time (s)");
+            WpfPlotTx.Plot.YLabel("Amplitude");
+            WpfPlotTx.Refresh();
+        }
         private void UpdateConstellationPlotTX()
         {
             WpfPlotTx.Plot.Clear();
@@ -193,7 +202,9 @@ namespace WpfApp1
             WpfPlotRx.Refresh();
         }
 
-        */
+       
+
+
 
 
 
@@ -205,6 +216,9 @@ namespace WpfApp1
             checksum ^= (byte)(msgFunction >> 0);
             checksum ^= (byte)(msgPayloadLength >> 8);
             checksum ^= (byte)(msgPayloadLength >> 0);
+
+            if (msgPayload == null || msgPayload.Length == 0)
+                return 0;
 
             foreach (byte bt in msgPayload)
             {
@@ -239,6 +253,7 @@ namespace WpfApp1
             QpskResult = 0x9010,
             IQ_DATA = 0x55AA
 
+
         }
 
         void ProcessDecodedMessage(int msgFunction, int msgPayloadLength, byte[] msgPayload)
@@ -252,19 +267,17 @@ namespace WpfApp1
                     break;
                 case (int)CommandId.QpskResult:
                     string qpskText = Encoding.ASCII.GetString(msgPayload);
-                    textBoxReception.Text += "[QPSK Demodulated] : " + qpskText + "\n";
+                    textBoxReception.Text += "[ASK Demodulated] : " + qpskText + "\n";
                     break;
-                /*case (int)CommandId.IQ_DATA:
+                case (int)CommandId.IQ_DATA:
                     byte type = msgPayload[0];
                     sbyte i = (sbyte)msgPayload[1];
                     sbyte q = (sbyte)msgPayload[2];
                     if (type == (byte)'T')
                     {
-                        double iNorm = i / 127.0;
-                        double qNorm = q / 127.0;
-                        txI.Add(iNorm);
-                        txQ.Add(qNorm);
-                        UpdateConstellationPlotTX();
+                        txI.Add(i);
+                        txQ.Add(q);
+                        UpdateWaveformPlotTX();
                     }
                     if (type == (byte)'R')
                     {
@@ -274,7 +287,7 @@ namespace WpfApp1
                         txQ.Add(qNorm);
                         UpdateConstellationPlotRX();
                     }
-                    break;*/
+                    break;
                 default:
                     break;
             }
