@@ -12,6 +12,110 @@ void AskModem_Init(AskModem* modem, uint16_t sample_per_symbol, float f0, float 
 void AskModem_Modulate(UART_HandleTypeDef* huart, AskModem* modem, const uint8_t* bits, uint16_t bit_len, AskRingBuffer* outbuf, float amplitude) {
     uint32_t global_sample = 0;
     for (uint16_t i = 0; i < bit_len; i++) {
+        uint8_t byte = bits[i];
+        for (int b = 7; b >= 0; b--) {
+            uint8_t bit = (byte >> b) & 1;
+            for (uint16_t n = 0; n < modem->samples_per_symbol; n++, global_sample++) {
+                float t = (float)global_sample / modem->fs;
+                float carrier = cosf(2 * M_PI * modem->f0 * t);
+                float sample = bit ? (amplitude * carrier) : 0.0f;
+                AskRingBuffer_Put(outbuf, (int16_t)(sample * 2047.0f));
+            }
+        }
+    }
+}
+void AskModem_Modulate_OOK(UART_HandleTypeDef* huart, AskModem* modem, const uint8_t* payload, uint16_t byte_len, AskRingBuffer* outbuf, float amplitude) {
+    uint32_t global_sample = 0;
+
+    // === Préambule : 1 bit à 1 ===
+    int16_t preamble_high = (int16_t)(amplitude * 1024.0f);
+    for (uint16_t n = 0; n < modem->samples_per_symbol; n++, global_sample++) {
+        AskRingBuffer_Put(outbuf, preamble_high);
+    }
+
+    // === Préambule : 1 bit à 0 ===
+    int16_t preamble_low = 0;
+    for (uint16_t n = 0; n < modem->samples_per_symbol; n++, global_sample++) {
+        AskRingBuffer_Put(outbuf, preamble_low);
+    }
+
+    // === Données utiles ===
+    for (uint16_t i = 0; i < byte_len; i++) {
+        uint8_t byte = payload[i];
+        for (int b = 7; b >= 0; b--) {
+            uint8_t bit = (byte >> b) & 1;
+            int16_t sample = bit ? preamble_high : preamble_low;
+
+            for (uint16_t n = 0; n < modem->samples_per_symbol; n++, global_sample++) {
+                AskRingBuffer_Put(outbuf, sample);
+            }
+        }
+    }
+}
+
+void AskModem_Demodulate_OOK(UART_HandleTypeDef* huart, AskModem* modem, AskRingBuffer* inbuf, uint8_t* bits_out, uint16_t* bit_len) {
+    *bit_len = 0;
+    const uint16_t N = modem->samples_per_symbol;
+
+    // Besoin d’au moins 2 symboles pour voir le préambule
+    if (AskRingBuffer_Available(inbuf) < 2 * N)
+        return;
+
+    // Étape 1 : détecter le préambule `1 0`
+    float threshold = 1500.0f;  // à ajuster selon ton amplitude
+
+    int synced = 0;
+    while (!synced && AskRingBuffer_Available(inbuf) >= 2 * N) {
+        // Lire deux symboles
+        float avg1 = 0.0f;
+        float avg2 = 0.0f;
+
+        for (uint16_t i = 0; i < N; i++) {
+            avg1 += fabsf((float)AskRingBuffer_Get(inbuf));
+        }
+        avg1 /= N;
+
+        for (uint16_t i = 0; i < N; i++) {
+            avg2 += fabsf((float)AskRingBuffer_Get(inbuf));
+        }
+        avg2 /= N;
+
+        if (avg1 > threshold && avg2 < threshold) {
+            synced = 1;
+        }
+    }
+
+    // Étape 2 : lire les bits restants
+    while (AskRingBuffer_Available(inbuf) >= N && *bit_len < ASK_MAX_BITS) {
+        float energy = 0.0f;
+        for (uint16_t i = 0; i < N; ++i) {
+            energy += fabsf((float)AskRingBuffer_Get(inbuf));
+        }
+
+        float avg = energy / N;
+        bits_out[(*bit_len)++] = (avg > threshold) ? 1 : 0;
+    }
+}
+/*
+void AskModem_Modulate_OOK(UART_HandleTypeDef* huart, AskModem* modem, const uint8_t* payload, uint16_t byte_len, AskRingBuffer* outbuf, float amplitude) {
+    uint32_t global_sample = 0;
+
+    for (uint16_t i = 0; i < byte_len; i++) {
+        uint8_t byte = payload[i];
+        for (int b = 7; b >= 0; b--) {
+            uint8_t bit = (byte >> b) & 1;
+            int16_t sample = bit ? (int16_t)(amplitude * 1024.0f) : 0;
+
+            for (uint16_t n = 0; n < modem->samples_per_symbol; n++, global_sample++) {
+                AskRingBuffer_Put(outbuf, sample);
+            }
+        }
+    }
+}*/
+/*
+void AskModem_Modulate(UART_HandleTypeDef* huart, AskModem* modem, const uint8_t* bits, uint16_t bit_len, AskRingBuffer* outbuf, float amplitude) {
+    uint32_t global_sample = 0;
+    for (uint16_t i = 0; i < bit_len; i++) {
         uint8_t bit = bits[i];
         for (uint16_t n = 0; n < modem->samples_per_symbol; n++, global_sample++) {
             float t = (float)global_sample / modem->fs;
@@ -20,48 +124,41 @@ void AskModem_Modulate(UART_HandleTypeDef* huart, AskModem* modem, const uint8_t
             AskRingBuffer_Put(outbuf, (int16_t)(sample * 2047.0f));
         }
     }
-}
+}*/
 
 void AskModem_Demodulate(UART_HandleTypeDef* huart, AskModem* modem, AskRingBuffer* inbuf, uint8_t* bits_out, uint16_t* bit_len) {
     *bit_len = 0;
 
-    while (AskRingBuffer_Available(inbuf) >= modem->samples_per_symbol) {
-        uint32_t energy = 0;
+    const uint16_t N = modem->samples_per_symbol;
 
-        for (uint16_t i = 0; i < modem->samples_per_symbol; i++) {
+    while (AskRingBuffer_Available(inbuf) >= N) {
+        float energy = 0.0f;
+
+        for (uint16_t i = 0; i < N; ++i) {
             int16_t sample = AskRingBuffer_Get(inbuf);
-            energy += abs(sample);
+            energy += fabsf((float)sample);
         }
 
-        uint32_t threshold = modem->samples_per_symbol * 500;
+        float average_energy = energy / N;
+        uint8_t bit = (average_energy > 1000.0f) ? 1 : 0;  // 625 à 715 typique
 
-        bits_out[*bit_len] = (energy > threshold) ? 1 : 0;
-        (*bit_len)++;
+        bits_out[(*bit_len)++] = bit;
     }
 }
 
-/*
-void AskModem_Demodulate(UART_HandleTypeDef* huart, AskModem* modem, AskRingBuffer* inbuf, uint8_t* bits_out, uint16_t* bit_len) {
-	uint32_t global_sample = 0;
-	*bit_len = 0;
+uint8_t SignalDetected(AskRingBuffer* buf, uint32_t threshold) {
+    uint32_t energy = 0;
+    if (AskRingBuffer_Available(buf) < 64) return 0;
 
-	while (AskRingBuffer_Available(inbuf) >= modem->samples_per_symbol) {
-	    float sum = 0.0f;
+    for (int i = 0; i < 64; i++) {
+        int16_t s = AskRingBuffer_Get(buf);
+        int16_t centered = s - 2048;
+        energy += abs(centered);
+    }
 
-	    for (uint16_t n = 0; n < modem->samples_per_symbol; n++, global_sample++) {
-	        int16_t sample = AskRingBuffer_Get(inbuf);
+    return (energy > threshold) ? 1 : 0;
+}
 
-	        // Ici on ne recentre pas, car la tension 0 correspond à "pas de porteuse"
-	        sum += sample;
-	    }
-
-	    float avg = sum / modem->samples_per_symbol;
-
-	    // ⚠️ Le seuil dépend de ton Vmax mesuré (~2.5V sur 12 bits = ~3100)
-	    bits_out[*bit_len] = (avg > 2200.0f) ? 1 : 0;
-	    (*bit_len)++;
-	}
-}*/
 
 void AskRingBuffer_Init(AskRingBuffer* rb) {
     rb->head = rb->tail = 0;

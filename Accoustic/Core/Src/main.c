@@ -78,6 +78,8 @@ volatile uint8_t ready_to_demodulate = 0;
 
 static int16_t tx_signal[ASK_RINGBUF_SIZE];
 uint16_t tx_signal_len = 0;
+static int16_t rx_signal[ASK_RINGBUF_SIZE];
+uint16_t rx_signal_len = 0;
 
 AskModem ask_modem;
 AskRingBuffer tx_ringbuf, rx_ringbuf;
@@ -116,8 +118,8 @@ void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* p
         AskRingBuffer_Init(&tx_ringbuf);
         AskRingBuffer_Init(&rx_ringbuf);
         AskModem_Init(&ask_modem, samples_per_symbol, 40000.0f, SAMPLE_RATE_HZ);
-        if (len > 4) len = 4;
-        AskModem_Modulate(&huart2, &ask_modem, payload, len, &tx_ringbuf, 1.0f);
+        //AskModem_Modulate(&huart2, &ask_modem, payload, len, &tx_ringbuf, 1.0f);
+        AskModem_Modulate_OOK(&huart2, &ask_modem, payload, len, &tx_ringbuf, 3.3f);
 
         tx_signal_len = 0;
         while (!AskRingBuffer_IsEmpty(&tx_ringbuf) && tx_signal_len < ASK_RINGBUF_SIZE) {
@@ -125,6 +127,7 @@ void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* p
         }
 
         IQTransmitter_InitFromBuffer(tx_signal, tx_signal_len);
+        //Afficher le signal sur l'interface pour debug
         /*for (int i = 0; i < tx_signal_len; i++) {
             SendIQFrame(&huart2, tx_signal[i], i);
         }*/
@@ -135,141 +138,6 @@ void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* p
         ready_to_demodulate = 1;
     }
 }
-
-/*
-void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
-{
-    if (cmd == CMD_QPSK_MOD_DEMOD) {
-        AskRingBuffer_Init(&tx_ringbuf);
-        AskRingBuffer_Init(&rx_ringbuf);
-
-        // Modulate input bits into ASK waveform
-        AskModem_Modulate(&huart2, &ask_modem, payload, len, &tx_ringbuf, 1.0f);
-
-        // Convert buffer to linear signal array
-        static int16_t signal[ASK_RINGBUF_SIZE];
-        uint16_t len_signal = 0;
-        while (!AskRingBuffer_IsEmpty(&tx_ringbuf) && len_signal < ASK_RINGBUF_SIZE) {
-            signal[len_signal++] = AskRingBuffer_Get(&tx_ringbuf);
-        }
-		#define N 512
-		for (uint16_t i = 0; i < N; ++i) {
-			float t = (float)i / 640000.0f;
-			float s = cosf(2 * M_PI * 40000.0f * t);
-			signal[i] = (int16_t)(s * 2047.0f);
-		}
-		IQTransmitter_InitFromBuffer(signal, N);
-		IQTransmitter_Start();
-        // Transmit via SPI to MCP4922
-        //IQTransmitter_InitFromBuffer(signal, len_signal);
-        //IQTransmitter_Start();
-
-        // Acquire the real signal from PA0 (ADC1)
-        adc_ready = 0;
-        HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, ADC_BUF_LEN);
-        while (!adc_ready) {
-            HAL_Delay(1);
-        }
-
-        for (uint16_t i = 0; i < ADC_BUF_LEN; ++i) {
-            AskRingBuffer_Put(&rx_ringbuf, adc_buffer[i]);
-        }
-
-        // Demodulate ASK signal
-        uint8_t bits_out[ASK_MAX_BITS];
-        uint16_t len_out = 0;
-        AskModem_Demodulate(&huart2, &ask_modem, &rx_ringbuf, bits_out, &len_out);
-
-        // Send decoded bits over UART
-        UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, bits_out);
-    }
-}*/
-
-/*
-void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
-{
-	extern uint16_t samples_per_symbol;
-    if (cmd == CMD_QPSK_MOD_DEMOD) {
-        // 1. Modulation QPSK et génération du signal à transmettre
-        QpskRingBuffer_Init(&tx_ringbuf);
-        QpskRingBuffer_Init(&rx_ringbuf);
-
-        QpskModem_Modulate(&huart2, &modem, payload, len);
-        QpskModem_GenerateSignal(&modem, &tx_ringbuf, 1.0f);
-
-        // 2. Copier le signal modulé dans un buffer linéaire
-        static int16_t signal[QPSK_RINGBUF_SIZE];
-        uint16_t len_signal = 0;
-        while (!QpskRingBuffer_IsEmpty(&tx_ringbuf) && len_signal < QPSK_RINGBUF_SIZE) {
-            signal[len_signal++] = QpskRingBuffer_Get(&tx_ringbuf);
-        }
-
-        // 3. Transmission graphique (facultatif)
-        IQTransmitter_InitFromBuffer(signal, len_signal);
-        IQTransmitter_Start();
-
-        // 4. Acquisition réelle du signal via DMA
-        adc_ready = 0;
-        HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, ADC_BUF_LEN);
-
-        // Attente de la fin de la capture DMA
-        while (!adc_ready) {
-            HAL_Delay(1);
-        }
-
-        QpskRingBuffer_Init(&rx_ringbuf);
-        for (uint16_t i = 0; i < ADC_BUF_LEN; ++i) {
-            int16_t sample = ((int32_t)adc_buffer[i]);
-            QpskRingBuffer_Put(&rx_ringbuf, sample);
-        }
-
-        // 6. Démodulation QPSK sur le signal reçu
-        uint8_t data_out[QPSK_MAX_SYMBOLS / 4];
-        uint16_t len_out = 0;
-        QpskModem_Demodulate(&huart2, &modem, &rx_ringbuf, data_out, &len_out);
-
-        // 7. Envoi du résultat démodulé par UART
-        UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, data_out);
-    }
-}*/
-
-
-//VRAI DERNIER QUI MARCHAIT celuui en dessous
-/*
-void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
-{
-    if (cmd == CMD_QPSK_MOD_DEMOD) {
-        QpskRingBuffer_Init(&tx_ringbuf);
-        QpskRingBuffer_Init(&rx_ringbuf);
-
-        QpskModem_Modulate(&huart2, &modem, payload, len);
-        QpskModem_GenerateSignal(&modem, &tx_ringbuf, 1.0f);
-
-        // Copier le signal modulé vers un buffer linéaire
-        static int16_t signal[QPSK_RINGBUF_SIZE];  // statique pour persister pendant l'interruption
-        uint16_t len_signal = 0;
-        while (!QpskRingBuffer_IsEmpty(&tx_ringbuf)) {
-            signal[len_signal++] = QpskRingBuffer_Get(&tx_ringbuf);
-        }
-
-        // Init et démarrage du transmetteur
-        IQTransmitter_InitFromBuffer(signal, len_signal);
-        IQTransmitter_Start();
-
-        // Simulation réception + démodulation
-        for (uint16_t i = 0; i < len_signal; i++) {
-            QpskRingBuffer_Put(&rx_ringbuf, signal[i]);
-        }
-
-        uint8_t data_out[QPSK_MAX_SYMBOLS / 4];
-        uint16_t len_out = 0;
-        QpskModem_Demodulate(&huart2, &modem, &rx_ringbuf, data_out, &len_out);
-
-        UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, data_out);
-    }
-}*/
-
-
 
 /* USER CODE END 0 */
 
@@ -334,6 +202,7 @@ int main(void)
 
       if (ready_to_demodulate && !IQTransmitter_IsActive()) {
           ready_to_demodulate = 0;
+          //HAL_Delay(35);
           adc_ready = 0;
 
           HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, ADC_BUF_LEN);
@@ -342,28 +211,41 @@ int main(void)
           }
 
           AskRingBuffer_Init(&rx_ringbuf);
+          int32_t sum = 0;
+
           for (uint16_t i = 0; i < ADC_BUF_LEN; ++i) {
-              AskRingBuffer_Put(&rx_ringbuf, adc_buffer[i]);
+              sum += adc_buffer[i];
           }
 
-          uint8_t bits_out[ASK_MAX_BITS];
-          uint16_t len_out = 0;
-          AskModem_Demodulate(&huart2, &ask_modem, &rx_ringbuf, bits_out, &len_out);
+          int16_t offset = sum / ADC_BUF_LEN;
 
-          // Regroupe les bits 8 par 8 pour reconstruire les caractères
-          uint8_t decoded_chars[ASK_MAX_BITS / 8] = {0};
-          uint16_t num_chars = 0;
-
-          for (uint16_t i = 0; i + 7 < len_out; i += 8) {
-              uint8_t byte = 0;
-              for (uint8_t b = 0; b < 8; b++) {
-                  byte = (byte << 1) | bits_out[i + b];  // MSB-first
-              }
-              decoded_chars[num_chars++] = byte;
+          for (uint16_t i = 0; i < ADC_BUF_LEN; ++i) {
+              int16_t centered = adc_buffer[i] - offset;
+              AskRingBuffer_Put(&rx_ringbuf, centered);
           }
 
-          // Envoie à l'interface PC
-          UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, num_chars, decoded_chars);
+          if (SignalDetected(&rx_ringbuf, 50000)) {
+              // Signal trouvé implique lancer la vraie démodulation
+              uint8_t bits_out[ASK_MAX_BITS];
+              uint16_t len_out = 0;
+              //AskModem_Demodulate(&huart2, &ask_modem, &rx_ringbuf, bits_out, &len_out);
+              AskModem_Demodulate_OOK(&huart2, &ask_modem, &rx_ringbuf, bits_out, &len_out);
+
+			  // Regroupe les bits 8 par 8 pour reconstruire les caractères
+			  uint8_t decoded_chars[ASK_MAX_BITS / 8] = {0};
+			  uint16_t num_chars = 0;
+
+			  for (uint16_t i = 0; i + 7 < len_out; i += 8) {
+				  uint8_t byte = 0;
+				  for (uint8_t b = 0; b < 8; b++) {
+					  byte = (byte << 1) | bits_out[i + b];  // MSB-first
+				  }
+				  decoded_chars[num_chars++] = byte;
+			  }
+
+			  // Envoie à l'interface PC
+			  UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, num_chars, decoded_chars);
+          }
 
           //UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, bits_out);
       }
@@ -391,10 +273,14 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 8;
+  RCC_OscInitStruct.PLL.PLLN = 336;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -404,12 +290,12 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -436,7 +322,7 @@ static void MX_ADC1_Init(void)
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
   */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.ScanConvMode = DISABLE;
   hadc1.Init.ContinuousConvMode = ENABLE;
@@ -490,7 +376,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -526,7 +412,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = (84000000 / SAMPLE_RATE_HZ) - 1;;
+  htim2.Init.Period = (84000000 / SAMPLE_RATE_HZ) - 1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -569,9 +455,9 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 12;
+  htim3.Init.Prescaler = 0;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 9;
+  htim3.Init.Period = (84000000 / SAMPLE_RATE_HZ) - 1;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -669,6 +555,7 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */

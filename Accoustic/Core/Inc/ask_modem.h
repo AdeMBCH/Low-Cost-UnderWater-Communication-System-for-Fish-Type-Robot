@@ -25,6 +25,10 @@ typedef struct {
 void AskModem_Init(AskModem* modem, uint16_t sample_per_symbol, float f0, float fs);
 void AskModem_Modulate(UART_HandleTypeDef* huart, AskModem* modem, const uint8_t* bits, uint16_t bit_len, AskRingBuffer* outbuf, float amplitude);
 void AskModem_Demodulate(UART_HandleTypeDef* huart, AskModem* modem, AskRingBuffer* inbuf, uint8_t* bits_out, uint16_t* bit_len);
+void AskModem_Modulate_OOK(UART_HandleTypeDef* huart, AskModem* modem, const uint8_t* payload, uint16_t byte_len, AskRingBuffer* outbuf, float amplitude);
+void AskModem_Demodulate_OOK(UART_HandleTypeDef* huart, AskModem* modem, AskRingBuffer* inbuf, uint8_t* bits_out, uint16_t* bit_len);
+
+uint8_t SignalDetected(AskRingBuffer* buf, uint32_t threshold);
 
 void AskRingBuffer_Init(AskRingBuffer* rb);
 uint8_t AskRingBuffer_IsFull(const AskRingBuffer* rb);

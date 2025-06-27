@@ -39,7 +39,6 @@ void IQTransmitter_InitFromBuffer(const int16_t* signal, uint16_t length) {
     iq_tx.active = 0;
 }
 
-
 void IQTransmitter_Start(void) {
     iq_tx.active = 1;
     iq_tx.index = 0;
@@ -50,20 +49,19 @@ void IQTransmitter_Stop(void) {
     iq_tx.active = 0;
     HAL_TIM_Base_Stop_IT(&htim2);
 
-    //Forcer la sortie à 0V
-    uint16_t spi_word = MCP4922_Pack(0, 0); // canal A, valeur 0
+    uint16_t spi_word = MCP4922_Pack(0, 0);
     uint8_t spi_buf[2] = { (spi_word >> 8) & 0xFF, spi_word & 0xFF };
 
     MCP4922_Select();
     HAL_SPI_Transmit(&hspi1, spi_buf, 2, HAL_MAX_DELAY);
     MCP4922_Unselect();
 }
-/*
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     if (htim->Instance == TIM2 && iq_tx.active) {
         if (iq_tx.index < iq_tx.length) {
             int16_t sample = iq_tx.buffer[iq_tx.index++];
-            uint16_t val = (sample + 2048 > 4095) ? 4095 : (sample + 2048 < 0 ? 0 : sample + 2048);
+            uint16_t val = (uint16_t)sample;
             uint16_t spi_word = MCP4922_Pack(0, val); // voie A uniquement
 
             MCP4922_Select();
@@ -73,28 +71,36 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
             IQTransmitter_Stop();
         }
     }
-}*/
-
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-    if (htim->Instance == TIM2 && iq_tx.active) {
-        if (iq_tx.index < iq_tx.length) {
-        	int16_t sample = iq_tx.buffer[iq_tx.index++];
-        	uint16_t val = (sample + 2048 > 4095) ? 4095 : (sample + 2048 < 0 ? 0 : sample + 2048);
-
-            uint16_t spi_word = MCP4922_Pack(0, val); // voie A uniquement
-
-            uint8_t spi_buf[2];
-            spi_buf[0] = (spi_word >> 8) & 0xFF;
-            spi_buf[1] = spi_word & 0xFF;
-
-            MCP4922_Select();
-            HAL_SPI_Transmit(&hspi1, spi_buf, 2, HAL_MAX_DELAY);
-            MCP4922_Unselect();
-        } else {
-            IQTransmitter_Stop();
-        }
-    }
 }
+/*
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+    if (htim->Instance != TIM2 || !iq_tx.active)
+        return;
+
+    if (iq_tx.index >= iq_tx.length) {
+        IQTransmitter_Stop();
+        return;
+    }
+
+    int16_t sample = iq_tx.buffer[iq_tx.index++];
+
+    // Clamp et décale vers plage [0; 4095]
+    int32_t shifted = (int32_t)sample + 2048;
+    if (shifted < 0) shifted = 0;
+    if (shifted > 4095) shifted = 4095;
+
+    uint16_t spi_word = MCP4922_Pack(0, (uint16_t)shifted);
+
+    uint8_t spi_buf[2] = {
+        (uint8_t)(spi_word >> 8),
+        (uint8_t)(spi_word & 0xFF)
+    };
+
+    MCP4922_Select();
+    HAL_SPI_Transmit(&hspi1, spi_buf, 2, HAL_MAX_DELAY);
+    MCP4922_Unselect();
+}
+*/
 
 void Enable_TIM2_Interrupt(void) {
     HAL_NVIC_SetPriority(TIM2_IRQn, 1, 0);
