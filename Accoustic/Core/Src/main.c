@@ -220,7 +220,8 @@ int main(void)
           int16_t offset = sum / ADC_BUF_LEN;
 
           for (uint16_t i = 0; i < ADC_BUF_LEN; ++i) {
-              int16_t centered = adc_buffer[i] - offset;
+              //int16_t centered = adc_buffer[i] - offset;
+        	  int32_t centered = (int32_t)adc_buffer[i] - (int32_t)offset;
               AskRingBuffer_Put(&rx_ringbuf, centered);
           }
 
@@ -231,17 +232,21 @@ int main(void)
               //AskModem_Demodulate(&huart2, &ask_modem, &rx_ringbuf, bits_out, &len_out);
               AskModem_Demodulate_OOK(&huart2, &ask_modem, &rx_ringbuf, bits_out, &len_out);
 
-			  // Regroupe les bits 8 par 8 pour reconstruire les caractères
-			  uint8_t decoded_chars[ASK_MAX_BITS / 8] = {0};
-			  uint16_t num_chars = 0;
+              uint8_t decoded_chars[ASK_MAX_BITS / 8] = {0};
+              uint16_t num_chars = 0;
 
-			  for (uint16_t i = 0; i + 7 < len_out; i += 8) {
-				  uint8_t byte = 0;
-				  for (uint8_t b = 0; b < 8; b++) {
-					  byte = (byte << 1) | bits_out[i + b];  // MSB-first
-				  }
-				  decoded_chars[num_chars++] = byte;
-			  }
+              const uint16_t payload_start = 2;  // skip les bits du préambule
+              uint16_t usable_bits = len_out - payload_start;
+              uint16_t usable_bytes = usable_bits / 8;
+
+              for (uint16_t i = 0; i < usable_bytes && num_chars < (ASK_MAX_BITS / 8); i++) {
+                  uint8_t byte = 0;
+                  for (uint8_t b = 0; b < 8; b++) {
+                      uint16_t idx = payload_start + i * 8 + b;
+                      byte = (byte << 1) | bits_out[idx];
+                  }
+                  decoded_chars[num_chars++] = byte;
+              }
 
 			  // Envoie à l'interface PC
 			  UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, num_chars, decoded_chars);
@@ -457,7 +462,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 0;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = (84000000 / SAMPLE_RATE_HZ) - 1;
+  htim3.Init.Period = (84000000 / 923) - 1;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)

@@ -9,6 +9,7 @@
 #include "uart_protocol.h"
 #include "stm32f4xx_hal.h"
 #include "CMD.h"
+#include <ctype.h>
 
 static uint8_t CalcChecksum(uint16_t cmd, uint16_t len, uint8_t* payload) {
     uint8_t cs = 0;
@@ -125,4 +126,32 @@ void SendIQFrame(UART_HandleTypeDef* huart, int8_t i, int8_t q) {
     payload[1] = (uint8_t)i;
     payload[2] = (uint8_t)q;
     UartProtocol_SendFrame(huart, CMD_IQ_DATA, 3, payload);
+}
+
+uint16_t SyncAndDecodeBits(uint8_t* bits, uint16_t len, uint8_t* chars_out, uint16_t max_chars) {
+    const uint16_t payload_start = 2;
+
+    for (uint8_t shift = 0; shift < 8; shift++) {
+        uint16_t start = payload_start + shift;
+        if (start + 8 > len) continue;
+
+        uint16_t num_chars = 0;
+        uint16_t usable_bits = len - start;
+        uint16_t usable_bytes = usable_bits / 8;
+
+        for (uint16_t i = 0; i < usable_bytes && num_chars < max_chars; i++) {
+            uint8_t byte = 0;
+            for (uint8_t b = 0; b < 8; b++) {
+                uint16_t idx = start + i * 8 + b;
+                byte = (byte << 1) | bits[idx];
+            }
+            if (!isprint(byte)) break; // stop si caractère illisible
+            chars_out[num_chars++] = byte;
+        }
+
+        if (num_chars >= 3) // on suppose que "1.5" a été trouvé
+            return num_chars;
+    }
+
+    return 0;
 }

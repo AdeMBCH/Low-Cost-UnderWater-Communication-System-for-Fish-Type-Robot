@@ -5,10 +5,10 @@
  *      Author: adeas
  */
 
-
-
 #include "iq_transmitter.h"
 #include "stm32f4xx_hal.h"
+#include <stdlib.h>
+
 
 extern SPI_HandleTypeDef hspi1;
 extern TIM_HandleTypeDef htim2;
@@ -28,7 +28,7 @@ static void MCP4922_Unselect(void) {
 
 static uint16_t MCP4922_Pack(uint8_t channel, uint16_t val12) {
     val12 &= 0x0FFF; // 12 bits
-    uint16_t ctrl = (channel ? 0xB000 : 0x3000); // Channel B : 1, A : 0, Gain=1x, buffered
+    uint16_t ctrl = (channel ? 0xB000 : 0x3000);
     return ctrl | val12;
 }
 
@@ -57,12 +57,13 @@ void IQTransmitter_Stop(void) {
     MCP4922_Unselect();
 }
 
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     if (htim->Instance == TIM2 && iq_tx.active) {
         if (iq_tx.index < iq_tx.length) {
             int16_t sample = iq_tx.buffer[iq_tx.index++];
             uint16_t val = (uint16_t)sample;
-            uint16_t spi_word = MCP4922_Pack(0, val); // voie A uniquement
+            uint16_t spi_word = MCP4922_Pack(0, val);
 
             MCP4922_Select();
             HAL_SPI_Transmit(&hspi1, (uint8_t*)&spi_word, sizeof(spi_word), HAL_MAX_DELAY);
@@ -72,35 +73,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
         }
     }
 }
-/*
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-    if (htim->Instance != TIM2 || !iq_tx.active)
-        return;
-
-    if (iq_tx.index >= iq_tx.length) {
-        IQTransmitter_Stop();
-        return;
-    }
-
-    int16_t sample = iq_tx.buffer[iq_tx.index++];
-
-    // Clamp et décale vers plage [0; 4095]
-    int32_t shifted = (int32_t)sample + 2048;
-    if (shifted < 0) shifted = 0;
-    if (shifted > 4095) shifted = 4095;
-
-    uint16_t spi_word = MCP4922_Pack(0, (uint16_t)shifted);
-
-    uint8_t spi_buf[2] = {
-        (uint8_t)(spi_word >> 8),
-        (uint8_t)(spi_word & 0xFF)
-    };
-
-    MCP4922_Select();
-    HAL_SPI_Transmit(&hspi1, spi_buf, 2, HAL_MAX_DELAY);
-    MCP4922_Unselect();
-}
-*/
 
 void Enable_TIM2_Interrupt(void) {
     HAL_NVIC_SetPriority(TIM2_IRQn, 1, 0);

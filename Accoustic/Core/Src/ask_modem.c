@@ -57,27 +57,20 @@ void AskModem_Demodulate_OOK(UART_HandleTypeDef* huart, AskModem* modem, AskRing
     *bit_len = 0;
     const uint16_t N = modem->samples_per_symbol;
 
-    // Besoin d’au moins 2 symboles pour voir le préambule
     if (AskRingBuffer_Available(inbuf) < 2 * N)
         return;
 
-    // Étape 1 : détecter le préambule `1 0`
-    float threshold = 1500.0f;  // à ajuster selon ton amplitude
+    // Dynamique selon amplitude connue (3.3V * 1024 = ~3379)
+    float threshold = 1800.0f;
 
     int synced = 0;
     while (!synced && AskRingBuffer_Available(inbuf) >= 2 * N) {
-        // Lire deux symboles
-        float avg1 = 0.0f;
-        float avg2 = 0.0f;
+        float avg1 = 0.0f, avg2 = 0.0f;
 
-        for (uint16_t i = 0; i < N; i++) {
-            avg1 += fabsf((float)AskRingBuffer_Get(inbuf));
-        }
+        for (uint16_t i = 0; i < N; i++) avg1 += fabsf((float)AskRingBuffer_Get(inbuf));
         avg1 /= N;
 
-        for (uint16_t i = 0; i < N; i++) {
-            avg2 += fabsf((float)AskRingBuffer_Get(inbuf));
-        }
+        for (uint16_t i = 0; i < N; i++) avg2 += fabsf((float)AskRingBuffer_Get(inbuf));
         avg2 /= N;
 
         if (avg1 > threshold && avg2 < threshold) {
@@ -85,7 +78,7 @@ void AskModem_Demodulate_OOK(UART_HandleTypeDef* huart, AskModem* modem, AskRing
         }
     }
 
-    // Étape 2 : lire les bits restants
+    // Lecture des symboles après synchro
     while (AskRingBuffer_Available(inbuf) >= N && *bit_len < ASK_MAX_BITS) {
         float energy = 0.0f;
         for (uint16_t i = 0; i < N; ++i) {
@@ -96,6 +89,7 @@ void AskModem_Demodulate_OOK(UART_HandleTypeDef* huart, AskModem* modem, AskRing
         bits_out[(*bit_len)++] = (avg > threshold) ? 1 : 0;
     }
 }
+
 /*
 void AskModem_Modulate_OOK(UART_HandleTypeDef* huart, AskModem* modem, const uint8_t* payload, uint16_t byte_len, AskRingBuffer* outbuf, float amplitude) {
     uint32_t global_sample = 0;
@@ -125,7 +119,7 @@ void AskModem_Modulate(UART_HandleTypeDef* huart, AskModem* modem, const uint8_t
         }
     }
 }*/
-
+/*
 void AskModem_Demodulate(UART_HandleTypeDef* huart, AskModem* modem, AskRingBuffer* inbuf, uint8_t* bits_out, uint16_t* bit_len) {
     *bit_len = 0;
 
@@ -144,21 +138,42 @@ void AskModem_Demodulate(UART_HandleTypeDef* huart, AskModem* modem, AskRingBuff
 
         bits_out[(*bit_len)++] = bit;
     }
-}
+}*/
 
+//SIGNAL DETECTED DESTRUCITF
+/*
 uint8_t SignalDetected(AskRingBuffer* buf, uint32_t threshold) {
     uint32_t energy = 0;
     if (AskRingBuffer_Available(buf) < 64) return 0;
 
     for (int i = 0; i < 64; i++) {
         int16_t s = AskRingBuffer_Get(buf);
-        int16_t centered = s - 2048;
+        int16_t centered = s - 2048;  // 👈 important
         energy += abs(centered);
     }
 
     return (energy > threshold) ? 1 : 0;
-}
+}*/
 
+uint8_t SignalDetected(AskRingBuffer* buf, uint32_t threshold) {
+    uint32_t energy = 0;
+    if (AskRingBuffer_Available(buf) < 64) return 0;
+
+    // On fait une copie temporaire du tail et on lit sans consommer
+    uint16_t original_tail = buf->tail;
+
+    for (int i = 0; i < 64; i++) {
+        int16_t s = buf->buf[buf->tail];
+        buf->tail = (buf->tail + 1) % ASK_RINGBUF_SIZE;
+
+        int16_t centered = s - 2048;
+        energy += abs(centered);
+    }
+
+    buf->tail = original_tail;  // restore l'état initial (non destructif)
+
+    return (energy > threshold) ? 1 : 0;
+}
 
 void AskRingBuffer_Init(AskRingBuffer* rb) {
     rb->head = rb->tail = 0;

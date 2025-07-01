@@ -1,6 +1,7 @@
-../Core/Src/uart_protocol.c:13:16:CalcChecksum	24	static
-../Core/Src/uart_protocol.c:26:6:UartProtocol_Init	16	static
-../Core/Src/uart_protocol.c:36:6:UartProtocol_ParseByte	24	static
-../Core/Src/uart_protocol.c:91:6:UartProtocol_SendFrame	304	static
-../Core/Src/uart_protocol.c:107:5:UartProtocol_BuildFrame	40	static
-../Core/Src/uart_protocol.c:122:6:SendIQFrame	24	static
+../Core/Src/uart_protocol.c:14:16:CalcChecksum	24	static
+../Core/Src/uart_protocol.c:27:6:UartProtocol_Init	16	static
+../Core/Src/uart_protocol.c:37:6:UartProtocol_ParseByte	24	static
+../Core/Src/uart_protocol.c:92:6:UartProtocol_SendFrame	304	static
+../Core/Src/uart_protocol.c:108:5:UartProtocol_BuildFrame	40	static
+../Core/Src/uart_protocol.c:123:6:SendIQFrame	24	static
+../Core/Src/uart_protocol.c:131:10:SyncAndDecodeBits	48	static

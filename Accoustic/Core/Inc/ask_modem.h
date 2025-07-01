@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "stm32f4xx_hal.h"
 
-#define SAMPLE_RATE_HZ 240000
+#define SAMPLE_RATE_HZ 100000
 #define SYMBOL_DURATION_US 2000
 #define ASK_MAX_BITS 32
 #define ASK_SAMPLES_PER_SYMBOL ((SAMPLE_RATE_HZ * SYMBOL_DURATION_US) / 1000000)
