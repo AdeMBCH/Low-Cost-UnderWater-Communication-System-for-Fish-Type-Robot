@@ -56,7 +56,6 @@
 
 /* External variables --------------------------------------------------------*/
 extern DMA_HandleTypeDef hdma_adc1;
-extern ADC_HandleTypeDef hadc1;
 extern DMA_HandleTypeDef hdma_spi1_tx;
 extern TIM_HandleTypeDef htim2;
 /* USER CODE BEGIN EV */
@@ -202,17 +201,17 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /**
-  * @brief This function handles ADC1 global interrupt.
+  * @brief This function handles EXTI line0 interrupt.
   */
-void ADC_IRQHandler(void)
+void EXTI0_IRQHandler(void)
 {
-  /* USER CODE BEGIN ADC_IRQn 0 */
+  /* USER CODE BEGIN EXTI0_IRQn 0 */
 
-  /* USER CODE END ADC_IRQn 0 */
-  HAL_ADC_IRQHandler(&hadc1);
-  /* USER CODE BEGIN ADC_IRQn 1 */
+  /* USER CODE END EXTI0_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(Sync_Trig_Pin);
+  /* USER CODE BEGIN EXTI0_IRQn 1 */
 
-  /* USER CODE END ADC_IRQn 1 */
+  /* USER CODE END EXTI0_IRQn 1 */
 }
 
 /**

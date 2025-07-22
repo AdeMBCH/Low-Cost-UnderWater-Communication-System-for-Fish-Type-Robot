@@ -83,67 +83,6 @@ static void MX_ADC1_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-// Callback called when a valid frame is received
-/*void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
-{
-    // Echo the received frame back to the PC (loopback)
-    UartProtocol_SendFrame(&huart2, cmd, len, payload);
-
-}
-*/
-
-/*//VRAI QUI MARCHE
-void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
-{
-    if (cmd == CMD_QPSK_MOD_DEMOD) {
-
-        QpskRingBuffer_Init(&tx_ringbuf);
-        QpskRingBuffer_Init(&rx_ringbuf);
-        QpskModem_Modulate(&huart2, &modem, payload, len);
-        QpskModem_SymbolsToIQ(&modem);
-        QpskModem_GenerateSignal(&modem, &tx_ringbuf, 1.0f);
-
-        Qpsk_SimulateReception(&tx_ringbuf, &rx_ringbuf);
-
-        uint8_t data_out[QPSK_MAX_SYMBOLS/4];
-        uint16_t len_out = 0;
-        QpskModem_Demodulate(&huart2,&modem, &rx_ringbuf, data_out, &len_out);
-
-        //UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len, payload);
-
-       UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, data_out);
-    }
-}*/
-
-/*
-void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
-{
-    if (cmd == CMD_QPSK_MOD_DEMOD) {
-        QpskRingBuffer_Init(&tx_ringbuf);
-        QpskRingBuffer_Init(&rx_ringbuf);
-        QpskModem_Modulate(&huart2, &modem, payload, len);
-        QpskModem_SymbolsToIQ(&modem);
-        QpskModem_GenerateSignal(&modem, &tx_ringbuf, 1.0f);
-        Qpsk_SimulateReception(&tx_ringbuf, &rx_ringbuf);
-        uint8_t data_out[QPSK_MAX_SYMBOLS/4];
-        uint16_t len_out = 0;
-        QpskModem_Demodulate(&huart2,&modem, &rx_ringbuf, data_out, &len_out);
-
-        // Conversion QPSK symbols to bits for LED transmission
-        num_bits_to_send = 0;
-        for (uint16_t i = 0; i < modem.num_symbols; i++) {
-            uint8_t symbol = modem.symbols[i]; // 2 bits
-            bits_to_send[num_bits_to_send++] = (symbol >> 1) & 0x01; // MSB
-            bits_to_send[num_bits_to_send++] = symbol & 0x01;        // LSB
-        }
-        bit_idx = 0;
-        transmitting = 1; // Flag pour démarrer la transmission LED
-
-        UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, data_out);
-    }
-}
-*/
-
 
 void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
 {
@@ -169,43 +108,6 @@ void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* p
         UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, data_out);
     }
 }
-
-/*
-void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
-{
-    if (cmd == CMD_QPSK_MOD_DEMOD) {
-        // Étape 1 : construire la trame complète UART dans un buffer
-        uint8_t full_frame[6 + FRAME_MAX_PAYLOAD];
-        int frame_len = UartProtocol_BuildFrame(cmd, len, payload, full_frame);
-        if (frame_len < 0) return; // Erreur taille
-
-        // Étape 2 : modulation QPSK
-        QpskRingBuffer_Init(&tx_ringbuf);
-        QpskRingBuffer_Init(&rx_ringbuf);
-        QpskModem_Modulate(&huart2, &modem, full_frame, frame_len);
-        QpskModem_SymbolsToIQ(&modem);
-        QpskModem_GenerateSignal(&modem, &tx_ringbuf, 1.0f);
-        Qpsk_SimulateReception(&tx_ringbuf, &rx_ringbuf);
-
-        // Étape 3 : démodulation (pour test)
-        uint8_t data_out[QPSK_MAX_SYMBOLS/4];
-        uint16_t len_out = 0;
-        QpskModem_Demodulate(&huart2, &modem, &rx_ringbuf, data_out, &len_out);
-
-        // Étape 4 : préparer transmission optique (LED)
-        for (uint16_t i = 0; i < modem.num_symbols; ++i)
-            qpsk_symbols[i] = modem.symbols[i];
-
-        qpsk_num_symbols = modem.num_symbols;
-        qpsk_symbol_idx = 0;
-        qpsk_transmitting = 1;
-
-        UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, data_out);
-    }
-}*/
-
-
-
 
 /* USER CODE END 0 */
 
@@ -244,36 +146,11 @@ int main(void)
   UartProtocol_Init(&proto, OnFrameReceived);
 
   QpskModem_Init(&modem, 16, 40000.0f, 640000.0f);
-
-	//uint32_t last_toggle = 0;
-	//uint32_t period_ms = 200; // 200ms => 2.5Hz
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   uint8_t c;
-/*  uint32_t last_bit_tick = 0;
-  const uint32_t bit_duration_ms = 20; // Durée d'un bit (ajuste selon ta caméra)
-
-  while (1)
-  {
-      if (HAL_UART_Receive(&huart2, &c, 1, 10) == HAL_OK) {
-          UartProtocol_ParseByte(&proto, c);
-      }
-
-      // Transmission LED
-      if (transmitting && (HAL_GetTick() - last_bit_tick >= bit_duration_ms)) {
-          if (bit_idx < num_bits_to_send) {
-              uint8_t bit = bits_to_send[bit_idx++];
-              HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, bit ? GPIO_PIN_SET : GPIO_PIN_RESET);
-              last_bit_tick = HAL_GetTick();
-          } else {
-              // Fin de transmission
-              HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-              transmitting = 0;
-          }
-      }
-  }*/
 
   uint32_t last_symbol_tick = 0;
   const uint32_t symbol_duration_ms = 100; // Ajuste selon la caméra
@@ -319,32 +196,6 @@ int main(void)
           }
       }
   }
-
-/*
-  while (1)
-  {
-      if (HAL_UART_Receive(&huart2, &c, 1, 10) == HAL_OK) {
-          UartProtocol_ParseByte(&proto, c);
-      }
-
-      // Transmission QPSK optique
-      if (qpsk_transmitting && (HAL_GetTick() - last_symbol_tick >= symbol_duration_ms)) {
-          if (qpsk_symbol_idx < qpsk_num_symbols) {
-              uint8_t symbol = qpsk_symbols[qpsk_symbol_idx++];
-              // Mapping QPSK -> LEDs (2 bits)
-              uint8_t bit0 = (symbol >> 1) & 0x01; // MSB
-              uint8_t bit1 = symbol & 0x01;        // LSB
-              HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, bit0 ? GPIO_PIN_SET : GPIO_PIN_RESET); // LED_A
-              HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, bit1 ? GPIO_PIN_SET : GPIO_PIN_RESET); // LED_B
-              last_symbol_tick = HAL_GetTick();
-          } else {
-              // Fin de transmission
-              HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-              HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
-              qpsk_transmitting = 0;
-          }
-      }
-  }*/
 
   /* USER CODE END 3 */
 }

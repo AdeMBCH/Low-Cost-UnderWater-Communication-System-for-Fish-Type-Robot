@@ -35,10 +35,6 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
-/*
-#define CMD_QPSK_MOD_DEMOD 0x1010
-#define CMD_QPSK_RESULT    0x9010
-#define CMD_IQ_DATA 0x55AA*/
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -65,7 +61,7 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
-#define ADC_BUF_LEN 4096
+#define ADC_BUF_LEN 10000 //10000
 uint16_t adc_buffer[ADC_BUF_LEN];
 
 volatile uint8_t bits_to_send[MAX_BITS];
@@ -84,6 +80,12 @@ uint16_t rx_signal_len = 0;
 AskModem ask_modem;
 AskRingBuffer tx_ringbuf, rx_ringbuf;
 
+volatile uint8_t ask_synch_triggered = 0;
+
+
+volatile uint8_t exti_blocked = 0;
+volatile uint32_t exti_reenable_time = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -97,7 +99,6 @@ static void MX_ADC1_Init(void);
 static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
-// Calculer samples_per_symbol pour avoir 1.8ms par symbole
 uint16_t samples_per_symbol = (SYMBOL_DURATION_US * SAMPLE_RATE_HZ) / 1000000;
 /* USER CODE END PFP */
 
@@ -106,20 +107,104 @@ uint16_t samples_per_symbol = (SYMBOL_DURATION_US * SAMPLE_RATE_HZ) / 1000000;
 
 volatile uint8_t adc_ready = 0;
 
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-    if (hadc->Instance == ADC1) {
+#define IS_RECEIVER
+
+#ifdef IS_RECEIVER
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+    if (ask_synch_triggered)
+    {
+        HAL_TIM_Base_Stop(&htim3);
+        HAL_ADC_Stop_DMA(&hadc1);
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+        //HAL_Delay(1);
+
         adc_ready = 1;
-    }
+
+        // On traite le buffer directement ici
+        AskRingBuffer_Init(&rx_ringbuf);
+        for (uint16_t i = 0; i < ADC_BUF_LEN; i ++)
+        {
+            AskRingBuffer_Put(&rx_ringbuf, adc_buffer[i]);
+        }
+
+        uint8_t bits_out[ASK_MAX_BITS];
+        uint16_t len_out = 0;
+
+        ask_modem.samples_per_symbol = ASK_SAMPLES_PER_SYMBOL;
+
+        //AskModem_Demodulate_OOK(&huart2,adc_buffer, ADC_BUF_LEN, bits_out, &len_out);
+        //AskModem_Demodulate_OOK(&huart2, &ask_modem, &rx_ringbuf, bits_out, &len_out);
+        AskModem_Demodulate_ByEdges(&huart2,adc_buffer, ADC_BUF_LEN, bits_out, &len_out);
+
+        uint8_t decoded_chars[ASK_MAX_BITS / 8] = {0};
+        uint16_t num_chars = 0;
+
+        const uint16_t payload_start = 2;
+        uint16_t usable_bits = len_out - payload_start;
+        uint16_t usable_bytes = usable_bits / 8;
+
+        for (uint16_t i = 0; i < usable_bytes && num_chars < (ASK_MAX_BITS / 8); i++) {
+        	uint8_t byte = 0;
+        	for (uint8_t b = 0; b < 8; b++) {
+        		uint16_t idx = payload_start + i * 8 + b;
+        		byte = (byte << 1) | bits_out[idx];
+        	}
+        	decoded_chars[num_chars++] = byte;
+        }
+
+        UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, num_chars, decoded_chars);
+        adc_ready = 0;
+        ask_synch_triggered = 0;
+       }
 }
 
+void Check_EXTI_Reactivation(void)
+{
+	if (exti_blocked && HAL_GetTick() >= exti_reenable_time)
+	{
+	    if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_RESET)
+	    {
+	        exti_blocked = 0;
+	        EXTI->PR = EXTI_PR_PR0;
+	        HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+	    }
+	}
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    if (GPIO_Pin == GPIO_PIN_0 && !ask_synch_triggered && exti_blocked == 0)
+    {
+        //HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+        //HAL_Delay(1);
+        exti_blocked = 1;
+        exti_reenable_time = HAL_GetTick() + 100;
+
+        __HAL_GPIO_EXTI_CLEAR_IT(GPIO_Pin); // clear flag EXTI
+        HAL_NVIC_DisableIRQ(EXTI0_IRQn);    // désactive EXTI0 pour éviter double front
+
+        ask_synch_triggered = 1;
+
+        // Lance ADC + DMA pour N échantillons
+        HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, ADC_BUF_LEN);
+
+        // Lance le timer qui cadencera les conversions ADC
+        HAL_TIM_Base_Start(&htim3);
+    }
+}
+#endif
 
 void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload) {
     if (cmd == CMD_QPSK_MOD_DEMOD) {
+    	HAL_TIM_Base_Start(&htim3);
         AskRingBuffer_Init(&tx_ringbuf);
         AskRingBuffer_Init(&rx_ringbuf);
         AskModem_Init(&ask_modem, samples_per_symbol, 40000.0f, SAMPLE_RATE_HZ);
-        //AskModem_Modulate(&huart2, &ask_modem, payload, len, &tx_ringbuf, 1.0f);
-        AskModem_Modulate_OOK(&huart2, &ask_modem, payload, len, &tx_ringbuf, 3.3f);
+        //AskModem_Modulate(&huart2, &ask_modem, payload, len, &tx_ringbuf, 3.3f);
+        //AskModem_Modulate_OOK(&huart2, &ask_modem, payload, len, &tx_ringbuf, 3.3f);
+        AskModem_Modulate_DiracTransitions(&huart2, &ask_modem, payload, len, &tx_ringbuf, 3.3f);
 
         tx_signal_len = 0;
         while (!AskRingBuffer_IsEmpty(&tx_ringbuf) && tx_signal_len < ASK_RINGBUF_SIZE) {
@@ -132,12 +217,9 @@ void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* p
             SendIQFrame(&huart2, tx_signal[i], i);
         }*/
         IQTransmitter_Start();
-
-
-        // On laisse le main() gérer la suite
-        ready_to_demodulate = 1;
     }
 }
+
 
 /* USER CODE END 0 */
 
@@ -178,21 +260,11 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   UartProtocol_Init(&proto, OnFrameReceived);
-
-  //QpskModem_Init(&modem, 1, 40000.0f, 640000.0f);
-  //QpskModem_Init(&modem, 400, 40000.0f, 200000.0f);
-
-  //QpskModem_Init(&modem, samples_per_symbol, 40000.0f, SAMPLE_RATE_HZ);
-	//uint32_t last_toggle = 0;
-	//uint32_t period_ms = 200; // 200ms => 2.5Hz
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   uint8_t c;
-
-  // Démarrage du Timer (doit être fait avant l’ADC)
-  HAL_TIM_Base_Start(&htim3);
 
   while (1)
   {
@@ -200,60 +272,7 @@ int main(void)
           UartProtocol_ParseByte(&proto, c);
       }
 
-      if (ready_to_demodulate && !IQTransmitter_IsActive()) {
-          ready_to_demodulate = 0;
-          //HAL_Delay(35);
-          adc_ready = 0;
-
-          HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, ADC_BUF_LEN);
-          while (!adc_ready) {
-              HAL_Delay(1);
-          }
-
-          AskRingBuffer_Init(&rx_ringbuf);
-          int32_t sum = 0;
-
-          for (uint16_t i = 0; i < ADC_BUF_LEN; ++i) {
-              sum += adc_buffer[i];
-          }
-
-          int16_t offset = sum / ADC_BUF_LEN;
-
-          for (uint16_t i = 0; i < ADC_BUF_LEN; ++i) {
-              //int16_t centered = adc_buffer[i] - offset;
-        	  int32_t centered = (int32_t)adc_buffer[i] - (int32_t)offset;
-              AskRingBuffer_Put(&rx_ringbuf, centered);
-          }
-
-          if (SignalDetected(&rx_ringbuf, 50000)) {
-              // Signal trouvé implique lancer la vraie démodulation
-              uint8_t bits_out[ASK_MAX_BITS];
-              uint16_t len_out = 0;
-              //AskModem_Demodulate(&huart2, &ask_modem, &rx_ringbuf, bits_out, &len_out);
-              AskModem_Demodulate_OOK(&huart2, &ask_modem, &rx_ringbuf, bits_out, &len_out);
-
-              uint8_t decoded_chars[ASK_MAX_BITS / 8] = {0};
-              uint16_t num_chars = 0;
-
-              const uint16_t payload_start = 2;  // skip les bits du préambule
-              uint16_t usable_bits = len_out - payload_start;
-              uint16_t usable_bytes = usable_bits / 8;
-
-              for (uint16_t i = 0; i < usable_bytes && num_chars < (ASK_MAX_BITS / 8); i++) {
-                  uint8_t byte = 0;
-                  for (uint8_t b = 0; b < 8; b++) {
-                      uint16_t idx = payload_start + i * 8 + b;
-                      byte = (byte << 1) | bits_out[idx];
-                  }
-                  decoded_chars[num_chars++] = byte;
-              }
-
-			  // Envoie à l'interface PC
-			  UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, num_chars, decoded_chars);
-          }
-
-          //UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, bits_out);
-      }
+      Check_EXTI_Reactivation();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -330,13 +349,13 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.ScanConvMode = DISABLE;
-  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
   hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T3_TRGO;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.NbrOfConversion = 1;
-  hadc1.Init.DMAContinuousRequests = ENABLE;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
@@ -462,7 +481,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 0;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = (84000000 / 923) - 1;
+  htim3.Init.Period = (SystemCoreClock / 500000) - 1;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -562,9 +581,13 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PA4 */
   GPIO_InitStruct.Pin = GPIO_PIN_4;
@@ -573,13 +596,29 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : Sync_Trig_Pin */
+  GPIO_InitStruct.Pin = Sync_Trig_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(Sync_Trig_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB8 */
+  GPIO_InitStruct.Pin = GPIO_PIN_8;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
-
 /* USER CODE END 4 */
 
 /**

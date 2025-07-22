@@ -17,6 +17,8 @@ namespace WpfApp1
     public partial class MainWindow : Window
     {
         ExtendedSerialPort serialPort1;
+        ExtendedSerialPort serialPort2;
+        ExtendedSerialPort serialPort3;
         DispatcherTimer timerAffichage;
         Robot robot = new Robot();
         private List<double> txI = new();
@@ -37,9 +39,17 @@ namespace WpfApp1
             bonjourTimer.Interval = TimeSpan.FromSeconds(4);
             bonjourTimer.Tick += BonjourTimer_Tick;
 
+            serialPort3 = new ExtendedSerialPort("COM5", 115200, Parity.None, 8, StopBits.One);
+            serialPort3.DataReceived += SerialPort3_DataReceived;
+            serialPort3.Open();
+
             serialPort1 = new ExtendedSerialPort("COM6", 115200, Parity.None, 8, StopBits.One);
             serialPort1.DataReceived += SerialPort1_DataReceived;
             serialPort1.Open();
+            
+            serialPort2 = new ExtendedSerialPort("COM8", 115200, Parity.None, 8, StopBits.One);
+            serialPort2.DataReceived += SerialPort2_DataReceived;
+            serialPort2.Open();
         }
 
         private void TimerAffichage_Tick(object? sender, EventArgs e)
@@ -58,6 +68,22 @@ namespace WpfApp1
         private void SerialPort1_DataReceived(object? sender, DataReceivedArgs e)
         {
             for (int i = 0; i < e.Data.Length; i++)
+            {
+                robot.byteListReceived.Enqueue(e.Data[i]);
+            }
+        }
+
+        private void SerialPort2_DataReceived(object? sender, DataReceivedArgs e)
+        {
+            for (int i = 0; i < e.Data.Length; i++)
+            {
+                robot.byteListReceived.Enqueue(e.Data[i]);
+            }
+        }
+
+        private void SerialPort3_DataReceived(object? sender, DataReceivedArgs e)
+        {
+            for (int i = 0; i < e.Data.Length;i++)
             {
                 robot.byteListReceived.Enqueue(e.Data[i]);
             }
@@ -112,11 +138,7 @@ namespace WpfApp1
             
             bonjourTimer.Stop();
             bonjourTimer.Start();
-            
-
-            //RECEPTION TEST
-           //EnvoyerEtatsDirect("C:\\Users\\adeas\\Documents\\GitHub\\Low-Cost UnderWater Communication System for Fish-Type Robot\\C#\\PC Interface\\GUICOM\\WpfApp1\\led_states_symbols.csv");
-
+         
         }
 
         private void EnvoyerEtatsDirect(string cheminCsv)
@@ -135,7 +157,7 @@ namespace WpfApp1
                 }
             }
         }
-        
+        /*
         private void BonjourTimer_Tick(object? sender, EventArgs e)
         {
             string s = "1.5";
@@ -144,12 +166,12 @@ namespace WpfApp1
             int msgFunction = (int)CommandId.QpskModDemod;
             UartEncodeAndSendMessage(msgFunction, msgPayloadLength, msgPayload);
         }
-        /*
+        */
         private double currentValue = 5.0; 
-
+        
         private void BonjourTimer_Tick(object? sender, EventArgs e)
         {
-            if (currentValue <= 30.0)
+            if (currentValue <= 100.0)
             {
                 string s = currentValue.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
                 byte[] msgPayload = Encoding.ASCII.GetBytes(s);
@@ -157,12 +179,12 @@ namespace WpfApp1
                 int msgFunction = (int)CommandId.QpskModDemod;
                 UartEncodeAndSendMessage(msgFunction, msgPayloadLength, msgPayload);
 
-                currentValue += 0.1; // Incrémente de 0.1 à chaque tick
+                currentValue += 1.0; // Incrémente de 1.0 à chaque tick
                 currentValue = Math.Round(currentValue, 1); // Pour éviter les erreurs d'arrondi flottant
             }
         }
 
-        */
+        
 
         private void UpdateWaveformPlotTX()
         {
@@ -243,7 +265,8 @@ namespace WpfApp1
             }
             byte checksum = CalculateChecksum(msgFunction, msgPayloadLength, msgPayload);
             message[pos++] = checksum;
-            serialPort1.Write(message, 0, pos);
+            //serialPort1.Write(message, 0, pos);
+            serialPort3.Write(message, 0, pos);
         }
 
         public enum CommandId

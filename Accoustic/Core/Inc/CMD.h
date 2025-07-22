@@ -15,10 +15,6 @@
 
 #define CMD_ASK_MOD_DEMOD 0x2020
 
-#define MAX_LED_STATES 256
-
 #define MAX_BITS 512
-
-#define HEADER_SYMBOLS_LEN 256
 
 #endif /* INC_CMD_H_ */

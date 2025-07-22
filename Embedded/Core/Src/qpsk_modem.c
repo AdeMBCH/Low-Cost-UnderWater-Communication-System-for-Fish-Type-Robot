@@ -75,12 +75,12 @@ void QpskModem_Demodulate(UART_HandleTypeDef* huart2,QpskModem* modem, QpskRingB
             Q += sample * ref_sin;
         }
 
-        uint8_t i_val, q_val;
+        /*uint8_t i_val, q_val;
         uint8_t payload[3];
         payload[0] = 'R';
         payload[1] = (uint8_t)i_val;
         payload[2] = (uint8_t)q_val;
-        UartProtocol_SendFrame(huart2, 0x55AA, 3, payload);
+        UartProtocol_SendFrame(huart2, 0x55AA, 3, payload);*/
 
         uint8_t symbol = 0;
         if (I >= 0 && Q >= 0) symbol = 0;

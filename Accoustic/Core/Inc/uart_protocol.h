@@ -49,6 +49,8 @@ int UartProtocol_BuildFrame(uint16_t cmd, uint16_t len, uint8_t* payload, uint8_
 
 void SendIQFrame(UART_HandleTypeDef* huart, int8_t i, int8_t q);
 
+void SendADCFrame(UART_HandleTypeDef* huart, uint16_t adc_val, uint16_t index);
+
 uint16_t SyncAndDecodeBits(uint8_t* bits, uint16_t len, uint8_t* chars_out, uint16_t max_chars);
 
 #endif /* INC_UART_PROTOCOL_H_ */
