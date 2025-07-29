@@ -118,7 +118,7 @@ void AskModem_Modulate_DiracTransitions(UART_HandleTypeDef* huart,AskModem* mode
     }
 }
 
-#define OOK_THRESHOLD 1800
+#define OOK_THRESHOLD 650
 #define MIN_RUN_LENGTH 100
 
 void AskModem_Demodulate_ByEdges(UART_HandleTypeDef* huart, uint16_t* adc_buffer, uint16_t buffer_len, uint8_t* bits_out, uint16_t* bit_len)
@@ -182,7 +182,7 @@ void AskModem_Demodulate_ByEdges(UART_HandleTypeDef* huart, uint16_t* adc_buffer
         uint16_t bit_count = (delta + bit_unit_len / 2) / bit_unit_len;
 
         if (bit_count == 0) bit_count = 1;
-
+        if (bit_count > 8) bit_count = 8;  // or 10 max
         for (uint16_t b = 0; b < bit_count && *bit_len < ASK_MAX_BITS; b++) {
             bits_out[(*bit_len)++] = current_bit;
         }

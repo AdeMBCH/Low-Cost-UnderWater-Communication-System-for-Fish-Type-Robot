@@ -9,12 +9,41 @@
 #include <math.h>
 #include "uart_protocol.h"
 #include "CMD.h"
+#include <string.h>
 
 static const int8_t QPSK_I[4] = {+127,-127,-127,+127};
 static const int8_t QPSK_Q[4] = {+127,+127,-127,-127};
 
 static const float PI = 3.14159265358979323846f;
 //static const float QPSK_PHASE[4] = { PI/4, 3*PI/4, 5*PI/4, 7*PI/4 };
+
+//Bits modulation functions for AI
+
+void StringToBits(uint8_t* out_bits, const char* text) {
+    uint16_t bit_index = 0;
+    for (size_t i = 0; i < strlen(text); i++) {
+        for (int b = 7; b >= 0; b--) {
+            out_bits[bit_index++] = (text[i] >> b) & 0x01;
+        }
+    }
+}
+
+void SendBitsAsPatterns(uint8_t* bits, uint16_t num_bits, uint32_t symbol_duration_ms) {
+    for (uint16_t i = 0; i < num_bits; i += 2) {
+        uint8_t b0 = (i < num_bits) ? bits[i] : 0;
+        uint8_t b1 = (i + 1 < num_bits) ? bits[i + 1] : 0;
+
+        //selon (b0, b1)
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, b0 ? GPIO_PIN_SET : GPIO_PIN_RESET); // LED1
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, b1 ? GPIO_PIN_SET : GPIO_PIN_RESET); // LED2
+
+        HAL_Delay(symbol_duration_ms); // durée du symbole
+    }
+
+    // Extinction des LED à la fin
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
+}
 
 //QPSK modulation Functions
 

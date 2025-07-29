@@ -2,7 +2,7 @@
 ../Core/Src/ask_modem.c:12:6:AskModem_Modulate	5
 ../Core/Src/ask_modem.c:28:6:AskModem_Modulate_OOK	7
 ../Core/Src/ask_modem.c:58:6:AskModem_Modulate_DiracTransitions	21
-../Core/Src/ask_modem.c:124:6:AskModem_Demodulate_ByEdges	21
+../Core/Src/ask_modem.c:124:6:AskModem_Demodulate_ByEdges	22
 ../Core/Src/ask_modem.c:195:6:AskModem_Demodulate_OOK	14
 ../Core/Src/ask_modem.c:285:6:AskRingBuffer_Init	1
 ../Core/Src/ask_modem.c:289:9:AskRingBuffer_IsFull	1

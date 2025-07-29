@@ -83,7 +83,30 @@ static void MX_ADC1_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
+{
+    if (cmd == CMD_QPSK_MOD_DEMOD) {
+        // Convertir le message reçu en bits
+        uint8_t bits[128]; // ajuste si message > 16 caractères
+        char temp[64] = {0};
 
+        // Nettoyage \r \n
+        uint16_t clean_len = 0;
+        for (uint16_t i = 0; i < len; ++i) {
+            if (payload[i] != '\r' && payload[i] != '\n') {
+                temp[clean_len++] = payload[i];
+            }
+        }
+        temp[clean_len] = '\0'; // null-terminate
+
+        StringToBits(bits, temp);
+        memcpy((uint8_t*)qpsk_symbols, bits, clean_len * 8);
+        qpsk_num_symbols = clean_len * 8;
+        qpsk_symbol_idx = 0;
+        qpsk_transmitting = 1;
+    }
+}
+/*
 void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* payload)
 {
     if (cmd == CMD_QPSK_MOD_DEMOD) {
@@ -107,7 +130,7 @@ void OnFrameReceived(UartProtocol* proto, uint16_t cmd, uint16_t len, uint8_t* p
 
         UartProtocol_SendFrame(&huart2, CMD_QPSK_RESULT, len_out, data_out);
     }
-}
+}*/
 
 /* USER CODE END 0 */
 
@@ -153,7 +176,7 @@ int main(void)
   uint8_t c;
 
   uint32_t last_symbol_tick = 0;
-  const uint32_t symbol_duration_ms = 100; // Ajuste selon la caméra
+  const uint32_t symbol_duration_ms = 50; // Ajuste selon la caméra 100 de base
 
   void send_led_preamble(uint32_t symbol_duration_ms) {
       // Ex : 8 symboles alternés
@@ -169,31 +192,28 @@ int main(void)
       HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
   }
 
+  void send_led_preamble2(uint32_t symbol_duration_ms) {
+      // Allumer les deux LEDs pendant 8 symboles
+      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);   // LED_A
+      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_SET);   // LED_B
+
+      HAL_Delay(8 * symbol_duration_ms); // Préambule stable
+
+      // Éteindre les LEDs à la fin du préambule
+      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
+  }
+
   while (1)
   {
       if (HAL_UART_Receive(&huart2, &c, 1, 10) == HAL_OK) {
           UartProtocol_ParseByte(&proto, c);
       }
-
-      // Transmission QPSK optique
-      if (qpsk_transmitting && (HAL_GetTick() - last_symbol_tick >= symbol_duration_ms)) {
-          if (qpsk_symbol_idx == 0) {
-              // Juste avant de commencer la transmission QPSK, envoie le préambule
-              send_led_preamble(symbol_duration_ms);
-          }
-
-          if (qpsk_symbol_idx < qpsk_num_symbols) {
-              uint8_t symbol = qpsk_symbols[qpsk_symbol_idx++];
-              uint8_t bit0 = (symbol >> 1) & 0x01; // MSB
-              uint8_t bit1 = symbol & 0x01;        // LSB
-              HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, bit0 ? GPIO_PIN_SET : GPIO_PIN_RESET); // LED_A
-              HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, bit1 ? GPIO_PIN_SET : GPIO_PIN_RESET); // LED_B
-              last_symbol_tick = HAL_GetTick();
-          } else {
-              HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-              HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
-              qpsk_transmitting = 0;
-          }
+      // Transmission optique avec pattern LED custom
+      if (qpsk_transmitting) {
+    	  qpsk_transmitting = 0;  // fin de transmission
+          send_led_preamble2(symbol_duration_ms);  // préambule standard
+          SendBitsAsPatterns((uint8_t*)qpsk_symbols, qpsk_num_symbols,symbol_duration_ms);  // appel propre
       }
   }
 

@@ -30,6 +30,12 @@ typedef struct {
 	volatile uint32_t tail;
 } QpskRingBuffer;
 
+
+//Bits modulation functions
+void SendBitsAsPatterns(uint8_t* bits, uint16_t num_bits, uint32_t symbol_duration_ms);
+void StringToBits(uint8_t* out_bits, const char* text);
+
+
 //QPSK modulation Functions
 
 void QpskModem_Init(QpskModem* modem, uint16_t sample_per_symbol, float f0, float fs);

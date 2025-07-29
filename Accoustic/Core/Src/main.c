@@ -61,7 +61,7 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
-#define ADC_BUF_LEN 10000 //10000
+#define ADC_BUF_LEN 30000 //10000
 uint16_t adc_buffer[ADC_BUF_LEN];
 
 volatile uint8_t bits_to_send[MAX_BITS];
