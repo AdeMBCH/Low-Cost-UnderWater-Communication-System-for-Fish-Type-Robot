@@ -1,0 +1,39 @@
+
+
+Epoch 300, Loss: 0.1133
+🧠 Bit Accuracy: 95.61%
+
+📊 Confusion Matrix:
+[[137096   4417]
+ [  6831 107656]]
+
+📈 Classification Report:
+              precision    recall  f1-score   support
+
+           0       0.95      0.97      0.96    141513
+           1       0.96      0.94      0.95    114487
+
+    accuracy                           0.96    256000
+   macro avg       0.96      0.95      0.96    256000
+weighted avg       0.96      0.96      0.96    256000
+
+✅ Modèle sauvegardé : gru_numnum_gpu_test.pt
+
+
+🧠 Bit Accuracy: 82.89%
+
+📊 Confusion Matrix:
+[[106431  21916]
+ [ 21875 105778]]
+
+📈 Classification Report:
+              precision    recall  f1-score   support
+
+           0       0.83      0.83      0.83    128347
+           1       0.83      0.83      0.83    127653
+
+    accuracy                           0.83    256000
+   macro avg       0.83      0.83      0.83    256000
+weighted avg       0.83      0.83      0.83    256000
+
+✅ Modèle sauvegardé : gru_ASCIIIII_gpu_test2.pt
